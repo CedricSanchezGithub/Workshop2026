@@ -14,6 +14,7 @@ import httpx
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 from langchain_chroma import Chroma
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_ollama import ChatOllama
@@ -118,6 +119,9 @@ def health():
     missing = [m for m in (config.LLM_MODEL, config.EMBED_MODEL if ":" in config.EMBED_MODEL else f"{config.EMBED_MODEL}:latest") if m not in models]
     return {"status": "ok" if not missing else "degraded", "missing_models": missing,
             "index": config.CHROMA_DIR.exists()}
+
+
+app.mount("/static", StaticFiles(directory=Path(__file__).parent / "static"), name="static")
 
 
 @app.get("/")
