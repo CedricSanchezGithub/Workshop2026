@@ -21,3 +21,24 @@ vault_platform_secrets:
 
 # Comptes humains (userpass) : politique attribuée par playbooks/vault-user.yml
 vault_admin_policy: admin
+
+# Services dont les journaux doivent être présents dans Loki (vérifié par verify.yml, WOR-46)
+loki_logged_services:
+  - postgres
+  - prometheus
+  - loki
+  - grafana
+  - vault
+  - vault-agent
+  - socket-proxy
+  - alloy
+
+# Fichiers de configuration montés dans chaque service (chemins relatifs à infra/) :
+# deploy.yml redémarre le service si l'un d'eux est plus récent que son conteneur.
+config_watch:
+  prometheus: [prometheus]
+  loki: [loki]
+  grafana: [grafana]
+  alloy: [alloy]
+  vault: [vault/vault.hcl]
+  vault-agent: [vault/agent.hcl]

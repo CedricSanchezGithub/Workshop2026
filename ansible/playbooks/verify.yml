@@ -73,6 +73,20 @@
       retries: 30
       delay: 3
 
+    # Chaque service doit avoir un flux de journaux dans Loki (sur la durée de rétention, 7 j) :
+    # un service silencieux depuis son démarrage n'a pas de ligne récente, mais son flux existe.
+    - name: Les journaux de chaque service arrivent dans Loki
+      ansible.builtin.uri:
+        url: >-
+          http://127.0.0.1:3100/loki/api/v1/series?match[]={{ '{platform="resilience-alpha"}' | urlencode }}&start={{ ((now().timestamp() - 604800) * 1000000000) | int }}
+        return_content: true
+      register: loki_streams
+      until: >-
+        loki_streams.status == 200
+        and (loki_logged_services | difference(loki_streams.json.data | map(attribute='container') | list)) | length == 0
+      retries: 20
+      delay: 3
+
     - name: Grafana est sain (via son port publié)
       ansible.builtin.uri:
         url: "http://{{ grafana_bind }}:3000/api/health"
@@ -114,6 +128,7 @@
       ansible.builtin.debug:
         msg:
           - "Cibles Prometheus UP : {{ up_query.json.data.result | map(attribute='metric.job') | sort | join(', ') }}"
+          - "Journaux dans Loki : {{ loki_streams.json.data | map(attribute='container') | unique | sort | join(', ') }}"
           - "Grafana    : http://{{ grafana_bind }}:3000"
           - "Vault      : {{ vault_addr }}/ui (jeton root dans infra/secrets/vault-init.json)"
           - "Prometheus : http://127.0.0.1:9090"
