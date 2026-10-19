@@ -1,0 +1,14 @@
+# Arrête la stack. Les volumes (données Postgres, métriques, journaux) sont conservés,
+# sauf avec -e purge=true.
+# Usage (depuis ansible/) : ansible-playbook playbooks/teardown.yml [-e purge=true]
+- name: Arrêter le socle d'infrastructure
+  hosts: pc_hote
+  gather_facts: false
+  vars:
+    purge: false
+  tasks:
+    - name: Arrêter les conteneurs
+      community.docker.docker_compose_v2:
+        project_src: "{{ infra_dir }}"
+        state: absent
+        remove_volumes: "{{ purge | bool }}"
