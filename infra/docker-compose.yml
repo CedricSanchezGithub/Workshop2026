@@ -1,0 +1,4 @@
+services:
+  # WOR-43 — à compléter : auth, payment-api, frontend, dashboard, remediation,
+  # prometheus, loki, grafana, waf, ml-inference, rag
+  {}
