@@ -1,0 +1,33 @@
+// Collecte des journaux des conteneurs du labo vers Loki.
+// Label `container` = nom du service compose (payment-api, waf, ...).
+// Les audits ModSecurity (lignes JSON commençant par {"transaction") et les accès
+// nginx partagent le flux du WAF ; on les sépare au moment de la requête LogQL.
+
+discovery.docker "lab" {
+  host = "unix:///var/run/docker.sock"
+  filter {
+    name   = "label"
+    values = ["com.docker.compose.project=resilience-ai-lab"]
+  }
+}
+
+discovery.relabel "lab" {
+  targets = discovery.docker.lab.targets
+
+  rule {
+    source_labels = ["__meta_docker_container_label_com_docker_compose_service"]
+    target_label  = "container"
+  }
+}
+
+loki.source.docker "lab" {
+  host       = "unix:///var/run/docker.sock"
+  targets    = discovery.relabel.lab.output
+  forward_to = [loki.write.local.receiver]
+}
+
+loki.write "local" {
+  endpoint {
+    url = "http://loki:3100/loki/api/v1/push"
+  }
+}

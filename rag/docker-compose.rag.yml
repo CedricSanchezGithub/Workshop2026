@@ -1,0 +1,36 @@
+# Services du pilier IA, à intégrer dans le compose principal de la plateforme.
+#
+#   docker compose -f rag/docker-compose.rag.yml up -d --build
+#
+# Ollama tourne sur le PC IA (ou l'hôte) : OLLAMA_URL doit pointer vers lui.
+
+name: resilience-rag
+
+services:
+  assistant:
+    build:
+      context: .
+      dockerfile: assistant/Dockerfile
+    ports: ["${ASSISTANT_BIND:-127.0.0.1}:${ASSISTANT_PORT:-8100}:8100"]
+    environment:
+      OLLAMA_URL: ${OLLAMA_URL:-http://host.docker.internal:11434}
+      LLM_MODEL: ${LLM_MODEL:-qwen2.5:7b}
+      EMBED_MODEL: ${EMBED_MODEL:-bge-m3}
+      ALLOWED_ORIGINS: ${ASSISTANT_ALLOWED_ORIGINS:-}
+    extra_hosts: ["host.docker.internal:host-gateway"]
+    volumes:
+      - ../docs:/docs:ro          # documentation de l'équipe, lecture seule
+      - assistant-data:/data      # index Chroma
+    # Isolation (exigence du sujet) : aucun accès privilégié au système.
+    # Pas de socket Docker, pas de secrets de la plateforme, système de fichiers en lecture seule.
+    read_only: true
+    tmpfs: [/tmp]
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    deploy:
+      resources:
+        limits: {cpus: "2.0", memory: 1g}
+    restart: unless-stopped
+
+volumes:
+  assistant-data: {}

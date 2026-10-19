@@ -6,6 +6,10 @@
       "headers": {
         "Authorization": "Bearer ${GITHUB_PAT}"
       }
+    },
+    "linear-workshop": {
+      "type": "http",
+      "url": "https://mcp.linear.app/mcp"
     }
   }
 }
