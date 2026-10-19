@@ -9,7 +9,7 @@ Responsable Infrastructure : Reza. Playbooks appelés par le moteur de remédiat
 
 ## Utilisation
 
-Prérequis : Ansible ≥ 2.15 (`pipx install ansible-core` ou paquet de la distribution), Docker + Compose ≥ 2.20.
+Prérequis : Ansible ≥ 2.17 (`pipx install ansible-core` ou paquet de la distribution), Docker + Compose ≥ 2.20.
 
 ```bash
 cd ansible
