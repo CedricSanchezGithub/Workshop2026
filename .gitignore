@@ -57,3 +57,6 @@ prometheus-data/
 *.log
 tmp/
 .cache/
+
+# Office lock files
+~$*
