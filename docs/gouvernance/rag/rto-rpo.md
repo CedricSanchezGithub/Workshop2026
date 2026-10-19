@@ -35,8 +35,8 @@ Le RTO se décompose en étapes. Chaque pilier tient une partie du budget. Les d
 
 | Étape | Marqueur de temps | Responsable | Budget attaque A | Budget attaque B |
 |---|---|---|---|---|
-| Début de l'impact → anomalie visible dans les métriques | T1 → T2 | Infrastructure (fréquence de collecte de Prometheus) | ≤ 15 s | ≤ 15 s |
-| Anomalie visible → alerte ML | T2 → T3 | IA / Data (fenêtre d'analyse du modèle) | ≤ 15 s | ≤ 15 s |
+| Début de l'impact → anomalie visible dans les métriques | T1 → T2 | Infrastructure (collecte Prometheus toutes les 5 s) | ≤ 5 s | ≤ 5 s |
+| Anomalie visible → alerte ML | T2 → T3 | IA / Data (fenêtre de 60 s évaluée toutes les 10 s, alerte après deux fenêtres anormales consécutives) | ≈ 20 s | ≈ 20 s |
 | Alerte → décision de remédiation | T3 → T4 | Développement | ≤ 5 s | ≤ 5 s |
 | Décision → action terminée | T4 → T5 | Infrastructure / Développement | ≤ 15 s (limitation au WAF, redémarrage) | ≤ 2 min (blocage, restauration, rotation du secret) |
 | Action terminée → transaction test réussie et données vérifiées | T5 → T6 | Développement | ≤ 10 s | ≤ 20 s |
@@ -44,7 +44,7 @@ Le RTO se décompose en étapes. Chaque pilier tient une partie du budget. Les d
 
 T0 désigne le lancement de l'attaque sur le PC Attaquant. L'écart T0 → T1 dépend de l'attaque et ne compte pas dans le RTO.
 
-> **Point de vigilance pour le Clip Chrono :** 60 s, c'est T0 → T6 **et** l'affichage du résultat. Avec la fréquence de collecte par défaut de Prometheus (15 s) et une fenêtre ML d'une minute, le budget ne tient pas. Il faut une collecte toutes les 5 s environ et une fenêtre d'analyse courte. **À arbitrer avec Reza et Léa.**
+> **Point de vigilance pour le Clip Chrono :** 60 s, c'est T0 → T6 **et** l'affichage du résultat. La collecte passe déjà toutes les 5 s (`infra/prometheus/prometheus.yml`). La détection reste le poste le plus long : environ 20 s si deux évaluations consécutives suffisent, jusqu'à 70 s si la fenêtre de 60 s doit se remplir d'abord (`docs/runbooks/reprise.md`). Le budget de 60 s est donc serré : **à mesurer en priorité avec Léa.**
 
 ## 5. Arbitrage à trancher : la restauration après une injection (attaque B)
 

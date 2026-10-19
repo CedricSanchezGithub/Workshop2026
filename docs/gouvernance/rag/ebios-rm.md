@@ -37,7 +37,7 @@
 | BS6 | Stack d'observabilité (Prometheus, Loki, Grafana) et SIEM | VM5, VM6 |
 | BS7 | Service d'inférence ML (détection d'anomalies) | VM6 |
 | BS8 | Moteur de remédiation, playbooks Ansible, accès au moteur Docker | VM6, puis indirectement toutes |
-| BS9 | Gestion des secrets (Vault ou SOPS) | VM3, VM4 |
+| BS9 | Gestion des secrets (HashiCorp Vault) | VM3, VM4 |
 | BS10 | Assistant RAG (Ollama, LangChain) | VM6 (aide aux opérateurs) |
 | BS11 | PC Hôte et réseau `RESILIENCE-G6` | Toutes |
 | BS12 | Dépôt Git et procédure de déploiement | VM6 |

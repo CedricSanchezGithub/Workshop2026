@@ -137,7 +137,7 @@ Les seuils viennent du coût d'un arrêt (`services-critiques.md`).
 - **Conduite à tenir :**
   1. Préparer une machine de remplacement (prérequis du README, WOR-49)
   2. Cloner le dépôt Git, redéployer avec Docker Compose et les playbooks Ansible
-  3. Restaurer les secrets depuis leur coffre (Vault ou SOPS)
+  3. Régénérer les secrets : Vault tourne sur le PC Hôte, son contenu est perdu avec lui. Le déploiement en crée de nouveaux quand `infra/.env` est absent
   4. Restaurer la dernière sauvegarde de la base, **si elle existe hors de l'hôte**
 - **Objectif :** aucun objectif chiffré tenable avec un seul hôte
 - **Risques résiduels :** **perte de toutes les données depuis la dernière copie hors hôte**. C'est le principal écart du démonstrateur (voir §8)
@@ -160,13 +160,13 @@ Quand la reprise automatique échoue, on maintient ce qui peut l'être :
 |---|---|---|---|---|
 | Code et configuration des services | Dépôt Git, version taguée (WOR-80) | Redéploiement Docker Compose et Ansible | À chaque livraison | Reza |
 | Règles du WAF | Dépôt Git | Rechargement à chaud | À chaque modification | Axel |
-| Secrets | Vault ou SOPS | Rotation puis redémarrage des services concernés | Après tout incident d'intégrité | Axel |
+| Secrets | HashiCorp Vault, sur le PC Hôte | Rotation puis redémarrage des services concernés | Après tout incident d'intégrité | Axel |
 | Base de données | Snapshot + journal des transactions (à confirmer, `rto-rpo.md` §5) | Restauration du snapshot puis rejeu | À définir avec Reza | Reza, Michael |
 | Journaux | Loki | **Jamais écrasés** ; copiés avant toute restauration | En continu | Axel |
 | Modèle ML | Dépôt Git (`ml/`) | Rechargement de la version validée | À chaque entraînement | Léa |
 | Index du RAG | Documents du dépôt | Réindexation | À chaque mise à jour des documents | Léa |
 
-> **Ne pas confondre restauration et remise à l'état sain.** La remise à l'état sain (WOR-90) recharge les **données de départ** pour rejouer un essai : elle efface les transactions. Elle ne doit **jamais** servir à reprendre après un incident réel.
+> **Ne pas confondre restauration et remise à l'état sain.** La remise à l'état sain (`scripts/reset-known-good.sh`, WOR-90) supprime les volumes pour rejouer un essai : elle efface les transactions, **mais aussi les journaux Loki et les métriques Prometheus**, donc les preuves. Elle ne doit **jamais** servir à reprendre après un incident réel.
 
 ## 7. Communication et notification
 
