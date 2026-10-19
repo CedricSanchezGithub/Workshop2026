@@ -23,6 +23,18 @@
         mode: "0600"
         force: false
 
+    - name: Lire le groupe propriétaire du socket Docker
+      ansible.builtin.stat:
+        path: /var/run/docker.sock
+      register: docker_socket
+
+    # socket-proxy (collecte des journaux, WOR-46) rejoint ce groupe pour lire le socket
+    - name: Renseigner DOCKER_GID dans .env
+      ansible.builtin.lineinfile:
+        path: "{{ infra_dir }}/.env"
+        regexp: "^DOCKER_GID="
+        line: "DOCKER_GID={{ docker_socket.stat.gid }}"
+
     - name: Lire .env
       ansible.builtin.slurp:
         src: "{{ infra_dir }}/.env"
@@ -34,6 +46,9 @@
         that: (env_content.content | b64decode) is not search('(?m)^[A-Z_]*(PASSWORD|SECRET|TOKEN)[A-Z_]*=')
         fail_msg: "infra/.env contient un secret : supprimez la ligne, les mots de passe sont gérés par Vault (WOR-62)."
         quiet: true
+
+    - name: Appliquer les fichiers de configuration modifiés
+      ansible.builtin.include_tasks: tasks/restart-on-config-change.yml
 
     - name: Initialiser, desceller et configurer Vault
       ansible.builtin.include_tasks: tasks/vault-bootstrap.yml

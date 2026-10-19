@@ -1,0 +1,58 @@
+// Collecte des journaux de tous les conteneurs de la plateforme vers Loki (WOR-46).
+// Reprend les conventions du labo IA (WOR-91, ml/lab/alloy/config.alloy) pour que les requêtes
+// LogQL du ML restent valables : label `container` = nom du service compose (postgres, vault, waf...).
+//
+// Alloy n'a PAS accès au socket Docker : il passe par socket-proxy, qui n'autorise que la lecture
+// de la liste des conteneurs et de leurs journaux.
+
+discovery.docker "platform" {
+  host             = "tcp://socket-proxy:2375"
+  refresh_interval = "5s"
+
+  // Uniquement les conteneurs de ce projet compose
+  filter {
+    name   = "label"
+    values = ["com.docker.compose.project=resilience-alpha"]
+  }
+}
+
+discovery.relabel "platform" {
+  targets = discovery.docker.platform.targets
+
+  rule {
+    source_labels = ["__meta_docker_container_label_com_docker_compose_service"]
+    target_label  = "container"
+  }
+}
+
+loki.source.docker "platform" {
+  host          = "tcp://socket-proxy:2375"
+  targets       = discovery.docker.platform.targets
+  relabel_rules = discovery.relabel.platform.rules
+  labels        = {platform = "resilience-alpha"}
+  forward_to    = [loki.process.platform.receiver]
+}
+
+loki.process "platform" {
+  // Journal d'audit Vault (JSON, valeurs secrètes hachées) : label audit_type=request|response
+  // pour le SIEM (WOR-61). Les autres lignes de Vault (texte) passent sans label.
+  stage.match {
+    selector = "{container=\"vault\"}"
+
+    stage.json {
+      expressions = {audit_type = "type"}
+    }
+
+    stage.labels {
+      values = {audit_type = ""}
+    }
+  }
+
+  forward_to = [loki.write.local.receiver]
+}
+
+loki.write "local" {
+  endpoint {
+    url = "http://loki:3100/loki/api/v1/push"
+  }
+}

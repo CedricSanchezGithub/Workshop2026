@@ -1,0 +1,28 @@
+# Les fichiers de configuration sont montés depuis le dépôt : Docker Compose ne voit pas leurs
+# modifications et ne recrée pas le conteneur. On redémarre donc tout service dont un fichier de
+# configuration (cf config_watch) est plus récent que le démarrage de son conteneur.
+# Exécuté AVANT le bootstrap de Vault : un Vault redémarré revient scellé et sera redescellé ensuite.
+
+- name: Repérer les services dont la configuration a changé depuis leur démarrage
+  ansible.builtin.shell:
+    cmd: |
+      set -euo pipefail
+      {% for service, paths in config_watch.items() %}
+      cid=$(docker compose ps -q {{ service }})
+      if [ -n "$cid" ]; then
+        started=$(date -d "$(docker inspect -f '{{ '{{' }}.State.StartedAt{{ '}}' }}' "$cid")" +%s)
+        newest=$(find {{ paths | map('quote') | join(' ') }} -type f -printf '%T@\n' | sort -n | tail -1 | cut -d. -f1)
+        if [ "${newest:-0}" -gt "$started" ]; then echo {{ service }}; fi
+      fi
+      {% endfor %}
+    chdir: "{{ infra_dir }}"
+    executable: /bin/bash
+  register: config_stale_services
+  changed_when: false
+
+- name: Redémarrer les services à la configuration modifiée
+  community.docker.docker_compose_v2:
+    project_src: "{{ infra_dir }}"
+    services: "{{ config_stale_services.stdout_lines }}"
+    state: restarted
+  when: config_stale_services.stdout_lines | length > 0
