@@ -12,3 +12,8 @@
 
   - `--rotate-secrets` : régénère les mots de passe (à jouer après le scénario B)
   - `--yes` : pas de confirmation
+
+- `pdf/` — génère les PDF des dossiers à partir des .md de `docs/` (aujourd'hui le dossier de
+  gouvernance), dans `livrables/`. Utilise le Chrome ou l'Edge installé (`CHROME_PATH` sinon).
+
+      cd scripts/pdf && npm install && npm run build

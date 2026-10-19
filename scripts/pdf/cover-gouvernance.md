@@ -30,5 +30,5 @@ Les 35 tickets communs (Pilotage, Cadrage, Intégration, Livrables) n'ont pas en
 ## Décisions en attente avec les autres piliers
 
 - **Restauration de la base après une injection** : un snapshot seul fait perdre des transactions confirmées, alors que l'objectif est zéro. Proposition : snapshot puis rejeu des transactions légitimes (Michael, Reza).
-- **Délai de détection compatible avec le Clip Chrono de 60 s** : collecte des métriques toutes les 5 s environ et fenêtre d'analyse ML courte (Reza, Léa).
+- **Délai de détection compatible avec le Clip Chrono de 60 s** : la collecte passe déjà toutes les 5 s ; reste la détection, entre 20 et 70 s selon le remplissage de la fenêtre de 60 s, à mesurer (Léa).
 - **Règles de l'automate** : deux signaux concordants avant une action destructrice, au plus 3 remédiations en 10 minutes (Michael).

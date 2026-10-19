@@ -1,0 +1,14 @@
+{
+  "name": "pdf-dossiers",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Génère les PDF des dossiers (gouvernance…) à partir des .md de docs/",
+  "main": "src/build.js",
+  "scripts": {
+    "build": "node src/build.js"
+  },
+  "dependencies": {
+    "markdown-it": "^14.3.3",
+    "puppeteer-core": "^23.11.1"
+  }
+}
