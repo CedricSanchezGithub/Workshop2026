@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Assistant opérateur</title>
+<style>
+  :root {
+    --ink: #261E48; --bg: #E4E6F3; --accent: #A1A6D4; --card: #ffffff; --muted: #5b5678;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --ink: #E4E6F3; --bg: #17132d; --accent: #4b4f86; --card: #221d3f; --muted: #a9a5c4; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink);
+         font: 15px/1.5 Montserrat, "Segoe UI", system-ui, sans-serif; }
+  main { max-width: 820px; margin: 0 auto; padding: 24px 16px 140px; }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  .sub { color: var(--muted); font-size: 13px; margin: 0 0 20px; }
+  .msg { background: var(--card); border-radius: 10px; padding: 12px 14px; margin: 12px 0;
+         white-space: pre-wrap; overflow-wrap: anywhere; }
+  .q { background: var(--accent); color: #261E48; margin-left: 15%; }
+  .meta { color: var(--muted); font-size: 12px; margin-top: 8px; }
+  details { margin-top: 8px; font-size: 13px; }
+  details div { border-left: 3px solid var(--accent); padding: 4px 10px; margin: 6px 0; white-space: pre-wrap; }
+  form { position: fixed; left: 0; right: 0; bottom: 0; background: var(--bg); padding: 12px 16px 20px;
+         border-top: 1px solid var(--accent); }
+  .row { max-width: 820px; margin: 0 auto; display: flex; gap: 8px; }
+  textarea { flex: 1; resize: none; height: 56px; border-radius: 8px; border: 1px solid var(--accent);
+             padding: 8px 10px; font: inherit; background: var(--card); color: var(--ink); }
+  button { border: 0; border-radius: 8px; padding: 0 18px; background: #261E48; color: #E4E6F3;
+           font: inherit; font-weight: 600; cursor: pointer; }
+  @media (prefers-color-scheme: dark) { button { background: #A1A6D4; color: #261E48; } }
+  button:disabled { opacity: .5; cursor: wait; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Assistant opérateur — RESILIENCE-ALPHA</h1>
+  <p class="sub">Répond à partir de la documentation de l'équipe (runbooks, PCA/PRA, architecture). Lecture seule : il ne lance aucune action.</p>
+  <div id="log"></div>
+</main>
+<form id="f">
+  <div class="row">
+    <textarea id="q" placeholder="Ex. : Que faire en cas d'alerte dos ?" maxlength="1000" required></textarea>
+    <button id="b">Envoyer</button>
+  </div>
+</form>
+<script>
+const log = document.getElementById("log"), q = document.getElementById("q"), b = document.getElementById("b");
+
+function bubble(cls, text) {
+  const d = document.createElement("div");
+  d.className = "msg " + cls;
+  d.textContent = text;
+  log.appendChild(d);
+  d.scrollIntoView({behavior: "smooth"});
+  return d;
+}
+
+document.getElementById("f").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const question = q.value.trim();
+  if (question.length < 3) return;
+  bubble("q", question);
+  q.value = ""; b.disabled = true;
+  const a = bubble("a", "…");
+  const t0 = performance.now();
+  try {
+    const r = await fetch("ask", {method: "POST", headers: {"Content-Type": "application/json"},
+                                  body: JSON.stringify({question})});
+    const raw = await r.text();
+    let data;
+    try { data = JSON.parse(raw); } catch { throw new Error(`HTTP ${r.status} — ${raw.slice(0, 200) || r.statusText}`); }
+    if (!r.ok) throw new Error(data.detail || `HTTP ${r.status}`);
+    a.textContent = data.answer;
+    const meta = document.createElement("div");
+    meta.className = "meta";
+    meta.textContent = `${((performance.now() - t0) / 1000).toFixed(1)} s · ${data.sources.length} source(s)`;
+    a.appendChild(meta);
+    if (data.sources.length) {
+      const det = document.createElement("details");
+      const sum = document.createElement("summary");
+      sum.textContent = "Sources";
+      det.appendChild(sum);
+      for (const s of data.sources) {
+        const div = document.createElement("div");
+        div.textContent = `[${s.ref}] ${s.source} — ${s.section} (pertinence ${s.relevance})\n${s.excerpt}`;
+        det.appendChild(div);
+      }
+      a.appendChild(det);
+    }
+  } catch (err) {
+    a.textContent = "Erreur : " + err.message;
+  } finally {
+    b.disabled = false; q.focus();
+  }
+});
+
+q.addEventListener("keydown", (e) => {
+  if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); document.getElementById("f").requestSubmit(); }
+});
+</script>
+</body>
+</html>

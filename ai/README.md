@@ -62,3 +62,20 @@ Le même code sert à la collecte et à l'inférence en direct.
 uv run python -m detector.collect --since 50m --out normal_01   # -> ai/data/normal_01.parquet
 uv run pytest
 ```
+
+## Assistant opérateur RAG (`ai/assistant/`)
+
+Assistant local, en lecture seule, qui répond aux opérateurs à partir de `docs/` (runbooks, PCA/PRA, EBIOS, ADR) et cite ses sources. Il n'a aucun outil ni accès au système et ne remplace pas le moteur de remédiation.
+
+- LLM : `qwen2.5:7b` (≤ 8 milliards de paramètres) ; embeddings : `bge-m3` (multilingue, bien meilleur en français que `nomic-embed-text` pour écarter les questions hors sujet) ; index : Chroma.
+- Une question sans extrait pertinent (score < 0,50) obtient « je ne trouve rien » sans appeler le LLM.
+- Les modèles restent chargés en mémoire GPU 4 h (`LLM_KEEP_ALIVE_S`) pour éviter ~30 s de chargement en pleine démo.
+
+```bash
+ollama pull qwen2.5:7b && ollama pull bge-m3
+uv run python -m assistant.ingest                       # à relancer après chaque modification de docs/
+uv run uvicorn assistant.app:app --port 8100            # page de test : http://localhost:8100
+curl -s localhost:8100/ask -H 'Content-Type: application/json' -d '{"question":"Que faire en cas d alerte dos ?"}'
+```
+
+En conteneur (isolé : docs en lecture seule, FS en lecture seule, sans socket Docker ni capabilities) : `docker compose -f ai/docker-compose.ai.yml --env-file ai/.env up -d --build`. Ollama doit alors être joignable depuis le conteneur (`OLLAMA_URL`).
