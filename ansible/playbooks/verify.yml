@@ -1,0 +1,63 @@
+# Vérifie que chaque service répond réellement, pas seulement que son conteneur tourne.
+# Usage (depuis ansible/) : ansible-playbook playbooks/verify.yml
+- name: Vérifier le socle d'infrastructure
+  hosts: pc_hote
+  gather_facts: false
+  vars:
+    grafana_bind: "{{ lookup('ansible.builtin.ini', 'GRAFANA_BIND', type='properties', file=infra_dir ~ '/.env', default='127.0.0.1') }}"
+  tasks:
+    - name: PostgreSQL accepte les connexions
+      ansible.builtin.command:
+        cmd: docker compose exec -T postgres sh -c 'pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB"'
+        chdir: "{{ infra_dir }}"
+      register: pg_ready
+      until: pg_ready.rc == 0
+      retries: 10
+      delay: 3
+      changed_when: false
+
+    - name: Prometheus est prêt
+      ansible.builtin.uri:
+        url: http://127.0.0.1:9090/-/ready
+      register: prom_ready
+      until: prom_ready.status == 200
+      retries: 20
+      delay: 3
+
+    # L'ingester de Loki attend ~15 s après le démarrage avant d'être prêt
+    - name: Loki est prêt
+      ansible.builtin.uri:
+        url: http://127.0.0.1:3100/ready
+      register: loki_ready
+      until: loki_ready.status == 200
+      retries: 30
+      delay: 3
+
+    - name: Grafana est sain (via son port publié)
+      ansible.builtin.uri:
+        url: "http://{{ grafana_bind }}:3000/api/health"
+        return_content: true
+      register: grafana_health
+      until: grafana_health.status == 200 and grafana_health.json.database == 'ok'
+      retries: 20
+      delay: 3
+
+    - name: Toutes les cibles Prometheus sont UP
+      ansible.builtin.uri:
+        url: http://127.0.0.1:9090/api/v1/query?query=up
+        return_content: true
+      register: up_query
+      until: >-
+        up_query.status == 200
+        and up_query.json.data.result | length > 0
+        and up_query.json.data.result | map(attribute='value') | map('last') | reject('equalto', '1') | list | length == 0
+      retries: 20
+      delay: 3
+
+    - name: Résumé
+      ansible.builtin.debug:
+        msg:
+          - "Cibles Prometheus UP : {{ up_query.json.data.result | map(attribute='metric.job') | sort | join(', ') }}"
+          - "Grafana    : http://{{ grafana_bind }}:3000"
+          - "Prometheus : http://127.0.0.1:9090"
+          - "Loki       : http://127.0.0.1:3100"
