@@ -1,0 +1,9 @@
+# Dossier contenant docker-compose.yml (infra/ à la racine du dépôt)
+infra_dir: "{{ (inventory_dir ~ '/../../infra') | realpath }}"
+
+compose_wait_timeout: 180
+
+# Variables de infra/.env.example remplacées par un secret aléatoire à la création de infra/.env
+generated_secrets:
+  - POSTGRES_PASSWORD
+  - GRAFANA_ADMIN_PASSWORD
