@@ -39,7 +39,10 @@ async def client(i: int, args, t0: float, stop: float) -> None:
                 auth = {"Authorization": f"Bearer {token}"}
                 action = random.random()
                 if action < 0.45:
-                    dst = f"FR-LAB-{random.randint(1, 50):04d}"
+                    # Virements entre clients actifs uniquement : la masse monétaire reste dans le
+                    # groupe simulé, sinon les comptes actifs se vident et tout finit en 409.
+                    other = random.choice([k for k in range(min(args.clients, 50)) if k != i % 50])
+                    dst = f"FR-LAB-{other + 1:04d}"
                     await http.post("/payments", headers=auth, json={
                         "dst": dst, "amount_cents": random.randint(100, 25_000), "label": random.choice(LABELS)})
                 elif action < 0.8:
