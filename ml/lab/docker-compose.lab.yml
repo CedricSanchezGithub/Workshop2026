@@ -1,8 +1,8 @@
 # Labo IA : génère des données réalistes pour entraîner le détecteur.
 # Ne fait PAS partie de la plateforme finale (qui sera fournie par les piliers Dev/Infra).
 #
-#   cp ai/.env.example ai/.env   # puis renseigner les valeurs
-#   docker compose -f ai/lab/docker-compose.lab.yml --env-file ai/.env up -d --build
+#   cp ml/lab/.env.example ml/lab/.env   # puis renseigner les valeurs
+#   docker compose -f ml/lab/docker-compose.lab.yml --env-file ml/lab/.env up -d --build
 #
 # Seul le WAF est publié sur le réseau (port WAF_PORT, 8080 par défaut). Prometheus, Loki et Grafana
 # restent sur 127.0.0.1 ; l'API et la base ne sont jamais exposées.
@@ -56,7 +56,7 @@ services:
     restart: unless-stopped
 
   prometheus:
-    image: prom/prometheus:v3.5.0
+    image: prom/prometheus:v3.15.0
     networks: [app, obs]
     ports: ["127.0.0.1:${PROMETHEUS_PORT:-9090}:9090"]
     volumes:
@@ -69,7 +69,7 @@ services:
     restart: unless-stopped
 
   loki:
-    image: grafana/loki:3.5.3
+    image: grafana/loki:3.7.8
     networks: [obs]
     ports: ["127.0.0.1:${LOKI_PORT:-3100}:3100"]
     volumes:
@@ -85,17 +85,20 @@ services:
       - ./alloy/config.alloy:/etc/alloy/config.alloy:ro
       # Labo uniquement : lecture des journaux des conteneurs via le socket Docker (lecture seule).
       - /var/run/docker.sock:/var/run/docker.sock:ro
+      # Positions de lecture persistées : sans ce volume, un redémarrage d'Alloy renvoie tout
+      # l'historique des conteneurs à Loki et double les comptages (waf_req_rate x2 constaté).
+      - alloy-data:/var/lib/alloy/data
     command: ["run", "/etc/alloy/config.alloy", "--storage.path=/var/lib/alloy/data"]
     depends_on: [loki]
     restart: unless-stopped
 
   grafana:
-    image: grafana/grafana:12.1.1
+    image: grafana/grafana:13.2.4
     networks: [obs]
     ports: ["127.0.0.1:${GRAFANA_PORT:-3300}:3000"]
     environment:
       GF_SECURITY_ADMIN_USER: admin
-      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?définir GRAFANA_ADMIN_PASSWORD dans ai/.env}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?définir GRAFANA_ADMIN_PASSWORD dans ml/lab/.env}
       GF_USERS_ALLOW_SIGN_UP: "false"
     volumes:
       - ./grafana/provisioning:/etc/grafana/provisioning:ro
@@ -113,3 +116,4 @@ volumes:
   prom-data: {}
   loki-data: {}
   grafana-data: {}
+  alloy-data: {}

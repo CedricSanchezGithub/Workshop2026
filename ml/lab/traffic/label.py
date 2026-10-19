@@ -1,9 +1,9 @@
-"""Note les fenêtres d'incident (vérité terrain) dans ai/data/labels.csv.
+"""Note les fenêtres d'incident (vérité terrain) dans ml/data/labels.csv.
 
 À lancer au début et à la fin de chaque scénario joué par l'équipe cyber :
 
-    uv run python -m traffic.label start dos  --note "scénario 1"
-    uv run python -m traffic.label stop
+    uv run python -m lab.traffic.label start dos  --note "scénario 1"
+    uv run python -m lab.traffic.label stop
 
 Le CSV sert uniquement à évaluer le détecteur (les Isolation Forest s'entraînent
 sur le trafic normal, sans étiquettes).
@@ -15,7 +15,7 @@ import json
 import time
 from pathlib import Path
 
-DATA = Path(__file__).resolve().parents[1] / "data"
+DATA = Path(__file__).resolve().parents[2] / "data"  # ml/data
 LABELS = DATA / "labels.csv"
 OPEN = DATA / ".label_open.json"
 TYPES = ("dos", "sqli")

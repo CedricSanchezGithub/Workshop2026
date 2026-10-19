@@ -1,4 +1,4 @@
-# Contexte de build : ai/  (voir ai/docker-compose.ai.yml)
+# Contexte de build : rag/  (voir rag/docker-compose.rag.yml)
 FROM python:3.12-slim@sha256:a6e34c598f2467ed0e9a8d349809fcd8b5c603269512df273a0bb1784edc11b1
 
 COPY --from=ghcr.io/astral-sh/uv:0.13.1 /uv /usr/local/bin/uv

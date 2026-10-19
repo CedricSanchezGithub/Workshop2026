@@ -4,7 +4,7 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[2]
 
 DOCS_DIR = Path(os.environ.get("DOCS_DIR", REPO / "docs"))
-CHROMA_DIR = Path(os.environ.get("CHROMA_DIR", Path(__file__).resolve().parent / "chroma"))
+CHROMA_DIR = Path(os.environ.get("CHROMA_DIR", Path(__file__).resolve().parents[1] / "vectorstore"))
 COLLECTION = "resilience-docs"
 
 OLLAMA_URL = os.environ.get("OLLAMA_URL", "http://localhost:11434")

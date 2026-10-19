@@ -2,9 +2,9 @@
 
 L'intensité varie lentement (sinusoïde + bruit) pour que le modèle apprenne une
 « normalité » qui n'est pas plate. Chaque client simulé a sa propre IP privée,
-transmise au WAF via X-Forwarded-For (voir WAF_TRUSTED_PROXIES dans ai/.env).
+transmise au WAF via X-Forwarded-For (voir WAF_TRUSTED_PROXIES dans ml/lab/.env).
 
-    uv run python -m traffic.normal --target http://localhost:8080 --clients 20 --duration 2700
+    uv run python -m lab.traffic.normal --target http://localhost:8080 --clients 20 --duration 2700
 """
 
 import argparse

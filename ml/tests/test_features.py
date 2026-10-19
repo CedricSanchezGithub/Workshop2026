@@ -1,8 +1,8 @@
 import httpx
 import pandas as pd
 
-from detector import features
-from detector.collect import label_windows
+from features import extract as features
+from features.collect import label_windows
 
 
 def _transport(request: httpx.Request) -> httpx.Response:

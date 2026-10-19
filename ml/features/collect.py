@@ -1,7 +1,7 @@
-"""Exporte les features d'une période vers ai/data/*.parquet, avec la vérité terrain.
+"""Exporte les features d'une période vers ml/data/*.parquet, avec la vérité terrain.
 
-    uv run python -m detector.collect --since 50m
-    uv run python -m detector.collect --start 1792405800 --end 1792408500 --out normal_01
+    uv run python -m features.collect --since 50m
+    uv run python -m features.collect --start 1792405800 --end 1792408500 --out normal_01
 
 Colonne `label` (évaluation uniquement, jamais utilisée pour l'entraînement) :
 - `normal`     : la fenêtre de 60 s ne recoupe aucun incident noté dans labels.csv
@@ -16,7 +16,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from detector.features import WINDOW_S, fetch_range
+from features.extract import WINDOW_S, fetch_range
 
 DATA = Path(__file__).resolve().parents[1] / "data"
 MIN_OVERLAP_S = 30

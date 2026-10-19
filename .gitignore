@@ -64,8 +64,9 @@ tmp/
 # Ansible — collections installées localement (ansible-galaxy -p ./collections)
 ansible/collections/
 
-# Pilier IA (ai/) — données du labo, modèles entraînés, index Chroma, clé Linear locale
-ai/data/
-ai/models/*.joblib
-ai/assistant/chroma/
+# Pilier IA — fichiers de travail du labo (le dataset ml/data/*.parquet, lui, est versionné)
+ml/data/runs/
+ml/data/.label_open.json
+
+# Clé d'API Linear locale
 key.claude
