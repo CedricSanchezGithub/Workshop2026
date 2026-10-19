@@ -1,0 +1,12 @@
+# Charge la clé de descellement et le jeton root depuis infra/secrets/vault-init.json (WOR-62).
+- name: Lire les clés locales
+  ansible.builtin.slurp:
+    src: "{{ vault_init_file }}"
+  register: vault_init_raw
+  no_log: true
+
+- name: Charger la clé de descellement et le jeton root
+  ansible.builtin.set_fact:
+    vault_unseal_key: "{{ (vault_init_raw.content | b64decode | from_json).keys_base64[0] }}"
+    vault_root_token: "{{ (vault_init_raw.content | b64decode | from_json).root_token }}"
+  no_log: true

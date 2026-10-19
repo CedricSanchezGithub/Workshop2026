@@ -62,17 +62,8 @@
   when: not vault_init_status.json.initialized
   no_log: true
 
-- name: Lire les clés locales
-  ansible.builtin.slurp:
-    src: "{{ vault_init_file }}"
-  register: vault_init_raw
-  no_log: true
-
-- name: Charger la clé de descellement et le jeton root
-  ansible.builtin.set_fact:
-    vault_unseal_key: "{{ (vault_init_raw.content | b64decode | from_json).keys_base64[0] }}"
-    vault_root_token: "{{ (vault_init_raw.content | b64decode | from_json).root_token }}"
-  no_log: true
+- name: Charger les clés locales
+  ansible.builtin.include_tasks: vault-load-keys.yml
 
 - name: Lire l'état de scellement
   ansible.builtin.uri:
@@ -271,4 +262,36 @@
     dest: "{{ vault_approle_dir }}/secret_id"
     mode: "0644"
   when: vault_secret_id is not skipped
+  no_log: true
+
+# Connexion humaine e-mail + mot de passe (les comptes sont créés par playbooks/vault-user.yml)
+- name: Politique admin (administration sans jeton root)
+  ansible.builtin.uri:
+    url: "{{ vault_addr }}/v1/sys/policies/acl/{{ vault_admin_policy }}"
+    method: PUT
+    headers:
+      X-Vault-Token: "{{ vault_root_token }}"
+    body_format: json
+    body:
+      policy: "{{ lookup('ansible.builtin.file', infra_dir ~ '/vault/policies/' ~ vault_admin_policy ~ '.hcl') }}"
+    status_code: [200, 204]
+  changed_when: false
+  no_log: true
+
+# listing_visibility=unauth : onglet "Username" affiché sur la page de connexion de l'UI
+- name: Activer l'authentification e-mail + mot de passe (userpass)
+  ansible.builtin.uri:
+    url: "{{ vault_addr }}/v1/sys/auth/userpass"
+    method: POST
+    headers:
+      X-Vault-Token: "{{ vault_root_token }}"
+    body_format: json
+    body:
+      type: userpass
+      description: Connexion humaine (e-mail + mot de passe)
+      config:
+        listing_visibility: unauth
+    status_code: [200, 204]
+  changed_when: true
+  when: "'userpass/' not in vault_auth_methods.json.data"
   no_log: true

@@ -41,7 +41,14 @@ Vault doit être initialisé et descellé avant le reste de la stack : passer pa
 
 Identifiants Grafana : utilisateur `GRAFANA_ADMIN_USER` (`infra/.env`), mot de passe dans Vault (`secret/platform/grafana`).
 
-Jeton root Vault (UI, dépannage) : `root_token` dans `infra/secrets/vault-init.json`.
+Connexion à Vault (UI) : méthode **Username**, identifiant = partie de votre e-mail avant `@`, mot de passe choisi
+à la création du compte :
+
+```bash
+cd ansible && ansible-playbook playbooks/vault-user.yml   # demande l'e-mail et le mot de passe
+```
+
+Le jeton root (`infra/secrets/vault-init.json`) reste réservé à l'automatisation et au dépannage.
 
 Console SQL : `docker compose exec postgres sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"'` (depuis `infra/`).
 
@@ -77,6 +84,10 @@ Ansible ──(API, jeton root)──▶ Vault ◀──(AppRole, lecture seule)
   seule sur `secret/data/platform/*`) et écrit chaque secret dans un fichier sur un volume **tmpfs** (jamais sur disque),
   un volume par service. Postgres et Grafana le lisent via `POSTGRES_PASSWORD_FILE` / `GF_SECURITY_ADMIN_PASSWORD__FILE`.
   → aucun mot de passe dans `.env`, dans le dépôt, ni dans `docker inspect` (vérifié par `verify.yml`).
+- **Comptes humains** : méthode `userpass` (identifiant = partie de l'e-mail avant `@`, car Vault refuse `@`
+  dans un identifiant ; l'adresse complète est enregistrée sur l'entité Vault). Politique `admin`
+  (`vault/policies/admin.hcl`) : secrets, comptes, politiques, moteurs — mais pas de scellement, de régénération
+  du jeton root ni d'accès brut au stockage. Sessions de 8 h (24 h max), verrouillage après échecs répétés.
 - **Audit** : chaque requête à Vault est journalisée sur la sortie standard du conteneur (valeurs hachées),
   donc récupérable par Loki pour le SIEM.
 - **Fichiers locaux** (`infra/secrets/`, ignoré par Git, dossier `700`) : clé de descellement + jeton root

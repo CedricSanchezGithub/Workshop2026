@@ -5,6 +5,7 @@ Responsable Infrastructure : Reza. Playbooks appelés par le moteur de remédiat
 - `inventory/` — hôtes (PC Hôte, PC IA)
 - `playbooks/` — deploy, verify, teardown ; à venir : restart propre, restauration (données/config), reset known-good (WOR-90)
 - `playbooks/tasks/vault-bootstrap.yml` — initialisation, descellement et configuration de Vault (WOR-62)
+- `playbooks/vault-user.yml` — compte Vault e-mail + mot de passe pour l'accès humain à l'UI (WOR-62)
 
 ## Utilisation
 
