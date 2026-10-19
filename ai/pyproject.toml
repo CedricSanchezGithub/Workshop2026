@@ -1,0 +1,14 @@
+[project]
+name = "resilience-ai"
+version = "0.1.0"
+description = "Pilier IA/Data de RESILIENCE-ALPHA : détection d'anomalies et assistant RAG"
+requires-python = ">=3.12"
+dependencies = [
+    "httpx>=0.28",
+]
+
+[dependency-groups]
+dev = ["pytest>=8"]
+
+[tool.uv]
+package = false

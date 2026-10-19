@@ -1,0 +1,115 @@
+# Labo IA : génère des données réalistes pour entraîner le détecteur.
+# Ne fait PAS partie de la plateforme finale (qui sera fournie par les piliers Dev/Infra).
+#
+#   cp ai/.env.example ai/.env   # puis renseigner les valeurs
+#   docker compose -f ai/lab/docker-compose.lab.yml --env-file ai/.env up -d --build
+#
+# Seul le WAF est publié sur le réseau (port WAF_PORT, 8080 par défaut). Prometheus, Loki et Grafana
+# restent sur 127.0.0.1 ; l'API et la base ne sont jamais exposées.
+
+name: resilience-ai-lab
+
+services:
+  mock-api:
+    build: ./mock_api
+    networks: [app]
+    volumes: [api-data:/data]
+    read_only: true
+    tmpfs: [/tmp]
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request;urllib.request.urlopen('http://localhost:8000/health',timeout=2)"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+    deploy:
+      resources:
+        limits: {cpus: "1.0", memory: 256m}
+    restart: unless-stopped
+
+  waf:
+    image: owasp/modsecurity-crs:nginx@sha256:7698c48a41a43138ae317feeec964d1515b861cc1d9e50617bc1cdfe9f314e1d
+    depends_on:
+      mock-api: {condition: service_healthy}
+    networks: [app]
+    ports: ["${WAF_BIND:-0.0.0.0}:${WAF_PORT:-8080}:8080"]
+    environment:
+      BACKEND: http://mock-api:8000
+      PORT: "8080"
+      BLOCKING_PARANOIA: "1"
+      ANOMALY_INBOUND: "5"
+      ANOMALY_OUTBOUND: "4"
+      ACCESSLOG: /dev/stdout
+      METRICSLOG: /dev/null
+      ERRORLOG: /dev/stderr
+      MODSEC_AUDIT_LOG: /dev/stdout
+      MODSEC_AUDIT_LOG_FORMAT: JSON
+      MODSEC_AUDIT_ENGINE: RelevantOnly
+      # Labo : le générateur de trafic tourne sur l'hôte (passerelle Docker) et simule
+      # plusieurs clients via X-Forwarded-For. Le PC attaquant, lui, garde sa vraie IP.
+      REAL_IP_HEADER: X-Forwarded-For
+      SET_REAL_IP_FROM: ${WAF_TRUSTED_PROXIES:-127.0.0.1}
+    deploy:
+      resources:
+        limits: {cpus: "1.0", memory: 256m}
+    restart: unless-stopped
+
+  prometheus:
+    image: prom/prometheus:v3.5.0
+    networks: [app, obs]
+    ports: ["127.0.0.1:${PROMETHEUS_PORT:-9090}:9090"]
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prom-data:/prometheus
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.retention.time=15d
+      - --web.enable-lifecycle
+    restart: unless-stopped
+
+  loki:
+    image: grafana/loki:3.5.3
+    networks: [obs]
+    ports: ["127.0.0.1:${LOKI_PORT:-3100}:3100"]
+    volumes:
+      - ./loki/loki.yml:/etc/loki/loki.yml:ro
+      - loki-data:/loki
+    command: ["-config.file=/etc/loki/loki.yml"]
+    restart: unless-stopped
+
+  alloy:
+    image: grafana/alloy:v1.10.2
+    networks: [obs]
+    volumes:
+      - ./alloy/config.alloy:/etc/alloy/config.alloy:ro
+      # Labo uniquement : lecture des journaux des conteneurs via le socket Docker (lecture seule).
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    command: ["run", "/etc/alloy/config.alloy", "--storage.path=/var/lib/alloy/data"]
+    depends_on: [loki]
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:12.1.1
+    networks: [obs]
+    ports: ["127.0.0.1:${GRAFANA_PORT:-3300}:3000"]
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?définir GRAFANA_ADMIN_PASSWORD dans ai/.env}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana-data:/var/lib/grafana
+    depends_on: [prometheus, loki]
+    restart: unless-stopped
+
+networks:
+  app: {}
+  obs: {}
+
+volumes:
+  api-data: {}
+  prom-data: {}
+  loki-data: {}
+  grafana-data: {}
