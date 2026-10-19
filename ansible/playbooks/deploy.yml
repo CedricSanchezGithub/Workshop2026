@@ -4,6 +4,13 @@
   hosts: pc_hote
   gather_facts: false
   tasks:
+    # community.docker 5.x (requirements.yml) exige ansible-core >= 2.17
+    - name: Exiger ansible-core >= 2.17
+      ansible.builtin.assert:
+        that: ansible_version.full is version('2.17.0', '>=')
+        fail_msg: "ansible-core {{ ansible_version.full }} est trop ancien (>= 2.17 requis) : pipx install ansible-core"
+        quiet: true
+
     - name: Lire la version de Docker Compose
       ansible.builtin.command: docker compose version --short
       register: compose_version

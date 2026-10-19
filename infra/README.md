@@ -15,7 +15,7 @@ Responsable Infrastructure : Reza. Déploiement reproductible (WOR-49).
 
 ## Déployer
 
-Prérequis (PC Hôte Linux) : Docker Engine + plugin Compose ≥ 2.20, Ansible ≥ 2.15, utilisateur dans le groupe `docker`.
+Prérequis (PC Hôte Linux) : Docker Engine + plugin Compose ≥ 2.20, Ansible ≥ 2.17, utilisateur dans le groupe `docker`.
 
 ```bash
 cd ansible
