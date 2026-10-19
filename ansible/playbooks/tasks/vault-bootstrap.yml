@@ -1,0 +1,274 @@
+# Démarre Vault puis l'amène dans un état utilisable, de façon idempotente (WOR-62) :
+# initialisation (une seule fois) -> descellement -> audit -> moteur KV -> secrets -> AppRole de l'agent.
+# Inclus par deploy.yml ; tous les appels passent par l'API HTTP sur 127.0.0.1.
+
+- name: Démarrer Vault seul
+  community.docker.docker_compose_v2:
+    project_src: "{{ infra_dir }}"
+    services: [vault]
+    state: present
+    pull: missing
+    wait: false
+
+- name: Créer le dossier des secrets locaux (non versionné)
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    mode: "0700"
+  loop:
+    - "{{ vault_secrets_dir }}"
+    - "{{ vault_approle_dir }}"
+
+- name: Attendre que l'API Vault réponde
+  ansible.builtin.uri:
+    url: "{{ vault_addr }}/v1/sys/init"
+  register: vault_init_status
+  until: vault_init_status.status == 200
+  retries: 30
+  delay: 2
+
+- name: Vérifier la présence des clés locales
+  ansible.builtin.stat:
+    path: "{{ vault_init_file }}"
+  register: vault_init_stat
+
+- name: Refuser un Vault initialisé dont les clés sont introuvables
+  ansible.builtin.assert:
+    that: not vault_init_status.json.initialized or vault_init_stat.stat.exists
+    fail_msg: >-
+      Vault est déjà initialisé mais {{ vault_init_file }} est absent : impossible de le desceller.
+      Restaurer ce fichier, ou repartir de zéro avec `ansible-playbook playbooks/teardown.yml -e purge=true`.
+    quiet: true
+
+# 1 seule part de clé : prototype mono-machine. En production : plusieurs parts (Shamir) ou auto-unseal KMS/HSM.
+- name: Initialiser Vault (première installation uniquement)
+  ansible.builtin.uri:
+    url: "{{ vault_addr }}/v1/sys/init"
+    method: POST
+    body_format: json
+    body:
+      secret_shares: 1
+      secret_threshold: 1
+  register: vault_init_result
+  when: not vault_init_status.json.initialized
+  changed_when: true
+  no_log: true
+
+- name: Enregistrer la clé de descellement et le jeton root (droits 600)
+  ansible.builtin.copy:
+    content: "{{ vault_init_result.json | to_nice_json }}"
+    dest: "{{ vault_init_file }}"
+    mode: "0600"
+  when: not vault_init_status.json.initialized
+  no_log: true
+
+- name: Lire les clés locales
+  ansible.builtin.slurp:
+    src: "{{ vault_init_file }}"
+  register: vault_init_raw
+  no_log: true
+
+- name: Charger la clé de descellement et le jeton root
+  ansible.builtin.set_fact:
+    vault_unseal_key: "{{ (vault_init_raw.content | b64decode | from_json).keys_base64[0] }}"
+    vault_root_token: "{{ (vault_init_raw.content | b64decode | from_json).root_token }}"
+  no_log: true
+
+- name: Lire l'état de scellement
+  ansible.builtin.uri:
+    url: "{{ vault_addr }}/v1/sys/seal-status"
+  register: vault_seal_status
+
+- name: Desceller Vault
+  ansible.builtin.uri:
+    url: "{{ vault_addr }}/v1/sys/unseal"
+    method: POST
+    body_format: json
+    body:
+      key: "{{ vault_unseal_key }}"
+  when: vault_seal_status.json.sealed
+  changed_when: true
+  no_log: true
+
+- name: Attendre que Vault soit actif (élection raft)
+  ansible.builtin.uri:
+    url: "{{ vault_addr }}/v1/sys/health"
+  register: vault_health
+  until: vault_health.status == 200
+  retries: 30
+  delay: 2
+
+# Journal d'audit sur la sortie standard : récupérable par Loki pour le SIEM
+- name: Lister les journaux d'audit
+  ansible.builtin.uri:
+    url: "{{ vault_addr }}/v1/sys/audit"
+    headers:
+      X-Vault-Token: "{{ vault_root_token }}"
+  register: vault_audit
+  no_log: true
+
+- name: Activer l'audit Vault vers stdout
+  ansible.builtin.uri:
+    url: "{{ vault_addr }}/v1/sys/audit/stdout"
+    method: PUT
+    headers:
+      X-Vault-Token: "{{ vault_root_token }}"
+    body_format: json
+    body:
+      type: file
+      options:
+        file_path: stdout
+    status_code: [200, 204]
+  when: "'stdout/' not in vault_audit.json.data"
+  changed_when: true
+  no_log: true
+
+- name: Lister les moteurs de secrets
+  ansible.builtin.uri:
+    url: "{{ vault_addr }}/v1/sys/mounts"
+    headers:
+      X-Vault-Token: "{{ vault_root_token }}"
+  register: vault_mounts
+  no_log: true
+
+- name: Activer le moteur KV v2 sur secret/
+  ansible.builtin.uri:
+    url: "{{ vault_addr }}/v1/sys/mounts/secret"
+    method: POST
+    headers:
+      X-Vault-Token: "{{ vault_root_token }}"
+    body_format: json
+    body:
+      type: kv
+      options:
+        version: "2"
+    status_code: [200, 204]
+  when: "'secret/' not in vault_mounts.json.data"
+  changed_when: true
+  no_log: true
+
+- name: Vérifier quels secrets de la plateforme existent déjà
+  ansible.builtin.uri:
+    url: "{{ vault_addr }}/v1/secret/data/platform/{{ item.name }}"
+    headers:
+      X-Vault-Token: "{{ vault_root_token }}"
+    status_code: [200, 404]
+  register: vault_existing_secrets
+  loop: "{{ vault_platform_secrets }}"
+  loop_control:
+    label: "secret/platform/{{ item.name }}"
+  no_log: true
+
+# Le KV v2 met quelques secondes à être prêt juste après son activation : on réessaie
+- name: Générer les secrets manquants (jamais d'écrasement)
+  ansible.builtin.uri:
+    url: "{{ vault_addr }}/v1/secret/data/platform/{{ item.item.name }}"
+    method: POST
+    headers:
+      X-Vault-Token: "{{ vault_root_token }}"
+    body_format: json
+    body:
+      data: "{{ {item.item.key: lookup('ansible.builtin.password', '/dev/null', length=32, chars=['ascii_letters', 'digits'])} }}"
+  register: vault_secret_write
+  until: vault_secret_write.status == 200
+  retries: 10
+  delay: 2
+  when: item.status == 404
+  loop: "{{ vault_existing_secrets.results }}"
+  loop_control:
+    label: "secret/platform/{{ item.item.name }}"
+  changed_when: true
+  no_log: true
+
+- name: Politique de l'agent (lecture seule sur secret/platform/*)
+  ansible.builtin.uri:
+    url: "{{ vault_addr }}/v1/sys/policies/acl/{{ vault_agent_role }}"
+    method: PUT
+    headers:
+      X-Vault-Token: "{{ vault_root_token }}"
+    body_format: json
+    body:
+      policy: |
+        path "secret/data/platform/*" {
+          capabilities = ["read"]
+        }
+    status_code: [200, 204]
+  changed_when: false
+  no_log: true
+
+- name: Lister les méthodes d'authentification
+  ansible.builtin.uri:
+    url: "{{ vault_addr }}/v1/sys/auth"
+    headers:
+      X-Vault-Token: "{{ vault_root_token }}"
+  register: vault_auth_methods
+  no_log: true
+
+- name: Activer l'authentification AppRole
+  ansible.builtin.uri:
+    url: "{{ vault_addr }}/v1/sys/auth/approle"
+    method: POST
+    headers:
+      X-Vault-Token: "{{ vault_root_token }}"
+    body_format: json
+    body:
+      type: approle
+    status_code: [200, 204]
+  when: "'approle/' not in vault_auth_methods.json.data"
+  changed_when: true
+  no_log: true
+
+- name: Rôle AppRole de l'agent (jetons courts, politique unique)
+  ansible.builtin.uri:
+    url: "{{ vault_addr }}/v1/auth/approle/role/{{ vault_agent_role }}"
+    method: POST
+    headers:
+      X-Vault-Token: "{{ vault_root_token }}"
+    body_format: json
+    body:
+      token_policies: ["{{ vault_agent_role }}"]
+      token_ttl: 1h
+      token_max_ttl: 4h
+    status_code: [200, 204]
+  changed_when: false
+  no_log: true
+
+- name: Lire le role_id de l'agent
+  ansible.builtin.uri:
+    url: "{{ vault_addr }}/v1/auth/approle/role/{{ vault_agent_role }}/role-id"
+    headers:
+      X-Vault-Token: "{{ vault_root_token }}"
+  register: vault_role_id
+  no_log: true
+
+# Lisible par l'utilisateur "vault" du conteneur ; protégé sur l'hôte par le dossier parent en 0700
+- name: Écrire le role_id
+  ansible.builtin.copy:
+    content: "{{ vault_role_id.json.data.role_id }}"
+    dest: "{{ vault_approle_dir }}/role_id"
+    mode: "0644"
+  no_log: true
+
+- name: Vérifier la présence du secret_id
+  ansible.builtin.stat:
+    path: "{{ vault_approle_dir }}/secret_id"
+  register: vault_secret_id_stat
+
+- name: Émettre un secret_id pour l'agent (absent ou Vault réinitialisé)
+  ansible.builtin.uri:
+    url: "{{ vault_addr }}/v1/auth/approle/role/{{ vault_agent_role }}/secret-id"
+    method: POST
+    headers:
+      X-Vault-Token: "{{ vault_root_token }}"
+  register: vault_secret_id
+  when: not vault_secret_id_stat.stat.exists or not vault_init_status.json.initialized
+  changed_when: true
+  no_log: true
+
+- name: Écrire le secret_id
+  ansible.builtin.copy:
+    content: "{{ vault_secret_id.json.data.secret_id }}"
+    dest: "{{ vault_approle_dir }}/secret_id"
+    mode: "0644"
+  when: vault_secret_id is not skipped
+  no_log: true

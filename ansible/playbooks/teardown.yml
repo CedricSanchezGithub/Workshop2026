@@ -1,5 +1,5 @@
-# Arrête la stack. Les volumes (données Postgres, métriques, journaux) sont conservés,
-# sauf avec -e purge=true.
+# Arrête la stack. Les volumes (données Postgres, Vault, métriques, journaux) sont conservés,
+# sauf avec -e purge=true, qui supprime aussi les clés Vault locales (infra/secrets/).
 # Usage (depuis ansible/) : ansible-playbook playbooks/teardown.yml [-e purge=true]
 - name: Arrêter le socle d'infrastructure
   hosts: pc_hote
@@ -12,3 +12,10 @@
         project_src: "{{ infra_dir }}"
         state: absent
         remove_volumes: "{{ purge | bool }}"
+
+    # Sans le volume vault-data, ces clés ne déverrouillent plus rien
+    - name: Supprimer les clés Vault locales
+      ansible.builtin.file:
+        path: "{{ vault_secrets_dir }}"
+        state: absent
+      when: purge | bool
