@@ -15,22 +15,13 @@
         fail_msg: "Docker Compose {{ compose_version.stdout }} est trop ancien (>= 2.20 requis)."
         quiet: true
 
+    # .env ne contient que de la configuration non secrète
     - name: Créer .env à partir de .env.example (uniquement s'il n'existe pas)
       ansible.builtin.copy:
         src: "{{ infra_dir }}/.env.example"
         dest: "{{ infra_dir }}/.env"
         mode: "0600"
         force: false
-      register: env_file
-
-    - name: Remplacer les mots de passe d'exemple par des secrets aléatoires
-      ansible.builtin.lineinfile:
-        path: "{{ infra_dir }}/.env"
-        regexp: "^{{ item }}="
-        line: "{{ item }}={{ lookup('ansible.builtin.password', '/dev/null', length=32, chars=['ascii_letters', 'digits']) }}"
-      loop: "{{ generated_secrets }}"
-      when: env_file.changed
-      no_log: true
 
     - name: Lire .env
       ansible.builtin.slurp:
@@ -38,11 +29,14 @@
       register: env_content
       no_log: true
 
-    - name: Refuser de déployer avec un mot de passe d'exemple
+    - name: Refuser un mot de passe dans .env (les secrets vivent dans Vault)
       ansible.builtin.assert:
-        that: (env_content.content | b64decode) is not search('(?m)^[A-Z_]+=change-me\s*$')
-        fail_msg: "infra/.env contient encore 'change-me' : remplacez les mots de passe ou supprimez .env pour le régénérer."
+        that: (env_content.content | b64decode) is not search('(?m)^[A-Z_]*(PASSWORD|SECRET|TOKEN)[A-Z_]*=')
+        fail_msg: "infra/.env contient un secret : supprimez la ligne, les mots de passe sont gérés par Vault (WOR-62)."
         quiet: true
+
+    - name: Initialiser, desceller et configurer Vault
+      ansible.builtin.include_tasks: tasks/vault-bootstrap.yml
 
     - name: Démarrer la stack et attendre les healthchecks
       community.docker.docker_compose_v2:

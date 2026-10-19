@@ -1,0 +1,147 @@
+# Crée (ou réinitialise le mot de passe d') un compte humain Vault à partir d'une adresse e-mail (WOR-62).
+# Vault (userpass) n'accepte pas "@" dans un identifiant : l'identifiant de connexion est la partie
+# avant "@" (ex. jean.dupont@exemple.fr -> jean.dupont) ; l'adresse complète est enregistrée sur
+# l'entité Vault (métadonnée "email").
+# Le mot de passe est saisi au clavier : il n'est écrit nulle part (ni dépôt, ni fichier, ni sortie).
+# Usage (depuis ansible/) : ansible-playbook playbooks/vault-user.yml
+# Prérequis : Vault déployé et descellé (playbooks/deploy.yml).
+- name: Compte Vault (e-mail + mot de passe)
+  hosts: pc_hote
+  gather_facts: false
+  vars_prompt:
+    - name: vault_user_email
+      prompt: "Adresse e-mail"
+      private: false
+    - name: vault_user_password
+      prompt: "Mot de passe (12 caractères minimum)"
+      private: true
+      confirm: true
+      unsafe: true
+  vars:
+    vault_user_address: "{{ vault_user_email | trim | lower }}"
+    vault_user_name: "{{ vault_user_address.split('@')[0] }}"
+  tasks:
+    - name: Vérifier l'adresse e-mail
+      ansible.builtin.assert:
+        that: vault_user_address is match('^[^@\s]+@[a-z0-9.-]+\.[a-z]{2,}$')
+        fail_msg: "Adresse e-mail invalide : {{ vault_user_address }}"
+        quiet: true
+
+    # Contrainte de Vault sur les identifiants userpass : lettres, chiffres, ".", "-", "_"
+    - name: Vérifier que la partie avant "@" est un identifiant Vault valide
+      ansible.builtin.assert:
+        that: vault_user_name is match('^\w([\w.-]*\w)?$')
+        fail_msg: >-
+          « {{ vault_user_name }} » ne peut pas servir d'identifiant Vault
+          (autorisés : lettres, chiffres, « . », « - », « _ », sans « + »).
+        quiet: true
+
+    - name: Vérifier la longueur du mot de passe
+      ansible.builtin.assert:
+        that: vault_user_password | length >= 12
+        fail_msg: "Mot de passe trop court (12 caractères minimum)."
+        quiet: true
+
+    - name: Charger le jeton root
+      ansible.builtin.include_tasks: tasks/vault-load-keys.yml
+
+    - name: Vérifier que Vault est descellé et actif
+      ansible.builtin.uri:
+        url: "{{ vault_addr }}/v1/sys/health"
+
+    - name: Lire l'accesseur de la méthode userpass
+      ansible.builtin.uri:
+        url: "{{ vault_addr }}/v1/sys/auth"
+        headers:
+          X-Vault-Token: "{{ vault_root_token }}"
+      register: vault_auth_methods
+      no_log: true
+
+    # Deux adresses avec la même partie avant "@" donneraient le même identifiant :
+    # on refuse plutôt que de réinitialiser le mot de passe de quelqu'un d'autre.
+    - name: Chercher un compte existant avec cet identifiant
+      ansible.builtin.uri:
+        url: "{{ vault_addr }}/v1/identity/lookup/entity"
+        method: POST
+        headers:
+          X-Vault-Token: "{{ vault_root_token }}"
+        body_format: json
+        body:
+          alias_name: "{{ vault_user_name }}"
+          alias_mount_accessor: "{{ vault_auth_methods.json.data['userpass/'].accessor }}"
+        status_code: [200, 204]
+      register: vault_existing_entity
+      no_log: true
+
+    - name: Refuser un identifiant déjà attribué à une autre adresse
+      ansible.builtin.assert:
+        that: >-
+          vault_existing_entity.status == 204
+          or (vault_existing_entity.json.data.metadata | default({}, true)).email | default(vault_user_address) == vault_user_address
+        fail_msg: "L'identifiant « {{ vault_user_name }} » appartient déjà à une autre adresse e-mail."
+        quiet: true
+
+    # Jetons de session de 8 h (24 h max) ; verrouillage après échecs répétés (protection native de userpass)
+    - name: Créer le compte ou mettre à jour son mot de passe
+      ansible.builtin.uri:
+        url: "{{ vault_addr }}/v1/auth/userpass/users/{{ vault_user_name }}"
+        method: POST
+        headers:
+          X-Vault-Token: "{{ vault_root_token }}"
+        body_format: json
+        body:
+          password: "{{ vault_user_password }}"
+          token_policies: ["{{ vault_admin_policy }}"]
+          token_ttl: 8h
+          token_max_ttl: 24h
+        status_code: [200, 204]
+      changed_when: true
+      no_log: true
+
+    # La première connexion crée l'entité Vault associée au compte
+    - name: Tester la connexion avec ce compte
+      ansible.builtin.uri:
+        url: "{{ vault_addr }}/v1/auth/userpass/login/{{ vault_user_name }}"
+        method: POST
+        body_format: json
+        body:
+          password: "{{ vault_user_password }}"
+      register: vault_user_login_test
+      no_log: true
+
+    - name: Vérifier la politique attribuée
+      ansible.builtin.assert:
+        that: vault_admin_policy in vault_user_login_test.json.auth.policies
+        fail_msg: "Connexion réussie mais la politique {{ vault_admin_policy }} n'est pas attribuée."
+        quiet: true
+
+    - name: Enregistrer l'adresse e-mail sur l'entité Vault
+      ansible.builtin.uri:
+        url: "{{ vault_addr }}/v1/identity/entity/id/{{ vault_user_login_test.json.auth.entity_id }}"
+        method: POST
+        headers:
+          X-Vault-Token: "{{ vault_root_token }}"
+        body_format: json
+        body:
+          metadata:
+            email: "{{ vault_user_address }}"
+        status_code: [200, 204]
+      changed_when: false
+      no_log: true
+
+    - name: Révoquer le jeton de test
+      ansible.builtin.uri:
+        url: "{{ vault_addr }}/v1/auth/token/revoke-self"
+        method: POST
+        headers:
+          X-Vault-Token: "{{ vault_user_login_test.json.auth.client_token }}"
+        status_code: [200, 204]
+      changed_when: false
+      no_log: true
+
+    - name: Résumé
+      ansible.builtin.debug:
+        msg:
+          - "Compte prêt pour {{ vault_user_address }} (politique {{ vault_admin_policy }})"
+          - "Identifiant de connexion : {{ vault_user_name }}"
+          - "Connexion : {{ vault_addr }}/ui -> méthode « Username »"

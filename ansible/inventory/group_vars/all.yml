@@ -3,7 +3,21 @@ infra_dir: "{{ (inventory_dir ~ '/../../infra') | realpath }}"
 
 compose_wait_timeout: 180
 
-# Variables de infra/.env.example remplacées par un secret aléatoire à la création de infra/.env
-generated_secrets:
-  - POSTGRES_PASSWORD
-  - GRAFANA_ADMIN_PASSWORD
+# HashiCorp Vault (WOR-62)
+vault_addr: http://127.0.0.1:8200
+# Clé de descellement, jeton root et identifiants AppRole : jamais dans Git (cf .gitignore "secrets/")
+vault_secrets_dir: "{{ infra_dir }}/secrets"
+vault_init_file: "{{ vault_secrets_dir }}/vault-init.json"
+vault_approle_dir: "{{ vault_secrets_dir }}/approle"
+vault_agent_role: platform-agent
+
+# Secrets générés aléatoirement à la première installation (jamais écrasés ensuite).
+# Chemin KV v2 : secret/platform/<name>, rendus en fichiers par vault-agent (infra/vault/agent.hcl).
+vault_platform_secrets:
+  - name: postgres
+    key: password
+  - name: grafana
+    key: admin_password
+
+# Comptes humains (userpass) : politique attribuée par playbooks/vault-user.yml
+vault_admin_policy: admin

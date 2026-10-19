@@ -6,6 +6,14 @@
   vars:
     grafana_bind: "{{ lookup('ansible.builtin.ini', 'GRAFANA_BIND', type='properties', file=infra_dir ~ '/.env', default='127.0.0.1') }}"
   tasks:
+    - name: Vault est initialisé, descellé et actif
+      ansible.builtin.uri:
+        url: "{{ vault_addr }}/v1/sys/health"
+      register: vault_health
+      until: vault_health.status == 200
+      retries: 10
+      delay: 3
+
     - name: PostgreSQL accepte les connexions
       ansible.builtin.command:
         cmd: docker compose exec -T postgres sh -c 'pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB"'
@@ -15,6 +23,38 @@
       retries: 10
       delay: 3
       changed_when: false
+
+    # Connexion TCP (scram-sha-256) avec le mot de passe rendu par vault-agent
+    - name: PostgreSQL accepte le mot de passe fourni par Vault
+      ansible.builtin.command:
+        cmd: >-
+          docker compose exec -T postgres sh -c
+          'PGPASSWORD="$(cat "$POSTGRES_PASSWORD_FILE")" psql -h 127.0.0.1 -U "$POSTGRES_USER" -d "$POSTGRES_DB" -tAc "select 1"'
+        chdir: "{{ infra_dir }}"
+      register: pg_auth
+      failed_when: pg_auth.rc != 0 or pg_auth.stdout | trim != '1'
+      changed_when: false
+
+    - name: Lister les conteneurs de la stack
+      ansible.builtin.command:
+        cmd: docker compose ps -q
+        chdir: "{{ infra_dir }}"
+      register: compose_containers
+      changed_when: false
+
+    - name: Inspecter l'environnement des conteneurs
+      ansible.builtin.command:
+        cmd: "docker inspect --format '{{ '{{' }}.Name{{ '}}' }} {{ '{{' }}json .Config.Env{{ '}}' }}' {{ compose_containers.stdout_lines | join(' ') }}"
+      register: compose_env
+      changed_when: false
+      no_log: true
+
+    - name: Aucun secret dans l'environnement des conteneurs
+      ansible.builtin.assert:
+        # Les variables *_FILE (chemin vers le fichier rendu par vault-agent) sont attendues
+        that: compose_env.stdout is not search('(PASSWORD|SECRET|TOKEN)[A-Z_]*(?<!_FILE)=')
+        fail_msg: "Un conteneur reçoit un secret en variable d'environnement (visible via docker inspect)."
+        quiet: true
 
     - name: Prometheus est prêt
       ansible.builtin.uri:
@@ -42,6 +82,22 @@
       retries: 20
       delay: 3
 
+    - name: Lire le mot de passe admin Grafana rendu par vault-agent
+      ansible.builtin.command:
+        cmd: docker compose exec -T grafana cat /run/secrets/grafana/admin_password
+        chdir: "{{ infra_dir }}"
+      register: grafana_admin_password
+      changed_when: false
+      no_log: true
+
+    - name: Grafana accepte le mot de passe fourni par Vault
+      ansible.builtin.uri:
+        url: "http://{{ grafana_bind }}:3000/api/org"
+        url_username: "{{ lookup('ansible.builtin.ini', 'GRAFANA_ADMIN_USER', type='properties', file=infra_dir ~ '/.env') }}"
+        url_password: "{{ grafana_admin_password.stdout }}"
+        force_basic_auth: true
+      no_log: true
+
     - name: Toutes les cibles Prometheus sont UP
       ansible.builtin.uri:
         url: http://127.0.0.1:9090/api/v1/query?query=up
@@ -59,5 +115,6 @@
         msg:
           - "Cibles Prometheus UP : {{ up_query.json.data.result | map(attribute='metric.job') | sort | join(', ') }}"
           - "Grafana    : http://{{ grafana_bind }}:3000"
+          - "Vault      : {{ vault_addr }}/ui (jeton root dans infra/secrets/vault-init.json)"
           - "Prometheus : http://127.0.0.1:9090"
           - "Loki       : http://127.0.0.1:3100"
