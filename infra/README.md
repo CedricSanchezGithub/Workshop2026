@@ -6,7 +6,7 @@ Responsable Infrastructure : Reza. Déploiement reproductible (WOR-49).
 |---|---|---|---|
 | `docker-compose.yml` | Tous les microservices, réseaux segmentés, healthchecks, limites | WOR-43 | socle en place (Postgres + observabilité), services métier à ajouter |
 | `prometheus/` | Scrape + règles d'alerte | WOR-45 | scrape du socle ; exporters et alertes à faire |
-| `loki/` | Centralisation des logs (+ agent Promtail/Alloy) | WOR-46 | Loki opérationnel ; agent de collecte à faire |
+| `loki/`, `alloy/` | Centralisation des logs : Loki + agent Alloy (via socket-proxy) | WOR-46 | en place : journaux de tous les conteneurs du projet |
 | `grafana/provisioning/` | Datasources + dashboards provisionnés (IaC) | WOR-47 | datasources provisionnées ; dashboards à faire |
 | `vault/` | Gestion des secrets : HashiCorp Vault + Vault Agent | WOR-62 | en place (Postgres, Grafana) |
 | `waf/` | Filtrage applicatif devant front + API | WOR-60 | à faire |
@@ -59,17 +59,36 @@ Console SQL : `docker compose exec postgres sh -c 'psql -U "$POSTGRES_USER" -d "
 | `backend` | postgres (+ futurs services métier) | `internal: true` : aucun accès sortant, aucun port publiable |
 | `monitoring` | prometheus, loki, grafana | Seul Grafana est publié |
 | `secrets` | vault, vault-agent | Vault publié sur 127.0.0.1 uniquement |
+| `docker-api` | socket-proxy, alloy | `internal: true` : seul Alloy peut interroger le proxy du socket Docker |
 
 ## Choix techniques
 
 - **Versions figées** (`postgres:18.6-alpine`, `prom/prometheus:v3.15.0`, `grafana/loki:3.7.8`,
-  `grafana/grafana:13.2.4`, `hashicorp/vault:2.2.0`) : un déploiement de jeudi doit être identique à celui de lundi.
+  `grafana/grafana:13.2.4`, `hashicorp/vault:2.2.0`, `grafana/alloy:v1.21.0`, `wollomatic/socket-proxy:1.13.1`) : un déploiement de jeudi doit être identique à celui de lundi.
 - **Scrape toutes les 5 s** : la détection doit tenir dans les 60 s du Clip Chrono.
 - **Durcissement de base** : `no-new-privileges`, `cap_drop: ALL` sur les services non-root,
   limites CPU et mémoire, rotation des journaux Docker (3 × 10 Mo).
 - **Postgres 18** : le volume est monté sur `/var/lib/postgresql` (nouvelle disposition de l'image 18).
 - **Loki** : image distroless sans shell, donc pas de healthcheck Docker ; sa disponibilité est
   contrôlée par `verify.yml` (`/ready`) et par Prometheus (`up{job="loki"}`).
+
+## Journaux — Loki + Alloy (WOR-46)
+
+```
+conteneurs ──▶ socket Docker ──▶ socket-proxy ──(lecture seule)──▶ alloy ──▶ loki ──▶ grafana (Explore)
+```
+
+- **Alloy** découvre automatiquement **tous les conteneurs du projet compose** `resilience-alpha` (les futurs
+  services, WAF compris, sont collectés sans configuration supplémentaire) et envoie leurs journaux à Loki.
+- **Labels** : `container` = nom du service compose (même convention que le labo IA WOR-91, pour que les requêtes
+  LogQL du ML restent valables), `platform="resilience-alpha"`. Audit Vault : `audit_type=request|response` (SIEM).
+- **Socket Docker protégé** : Alloy n'y accède pas directement (ce serait un accès root à l'hôte). `socket-proxy`
+  n'autorise que `GET` sur la liste des conteneurs, leurs journaux, et la liste des réseaux, uniquement pour Alloy ;
+  tout le reste (création, arrêt, exec…) est refusé (403). Il tourne en `nobody` + groupe du socket (`DOCKER_GID`,
+  détecté par `deploy.yml`), en lecture seule, sans capacité.
+- **Positions de lecture persistées** (volume `alloy-data`) : un redémarrage d'Alloy ne renvoie pas l'historique.
+- Exemples LogQL (Grafana → Explore → Loki) : `{container="postgres"}`, `{container="vault", audit_type="request"}`,
+  `sum by (container) (count_over_time({platform="resilience-alpha"}[5m]))`.
 
 ## Secrets — HashiCorp Vault (WOR-62)
 

@@ -170,6 +170,56 @@ services:
           cpus: "0.5"
           memory: 512M
 
+  # Seul composant qui touche au socket Docker : ne laisse passer que la LECTURE de la liste
+  # des conteneurs et de leurs journaux, et uniquement pour Alloy (WOR-46).
+  socket-proxy:
+    <<: *hardening
+    image: wollomatic/socket-proxy:1.13.1
+    command:
+      - -listenip=0.0.0.0
+      - -allowfrom=alloy
+      - -allowGET=^(/v[0-9.]+)?/(_ping|version|networks|containers/json|containers/[a-zA-Z0-9_.-]+/(json|logs))$$
+      - -allowHEAD=^(/v[0-9.]+)?/_ping$$
+      - -watchdoginterval=30
+      - -stoponwatchdog
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    # Utilisateur nobody + groupe propriétaire du socket sur l'hôte (détecté par Ansible)
+    group_add:
+      - "${DOCKER_GID:?DOCKER_GID manquant dans .env (gid du socket Docker, renseigné par deploy.yml)}"
+    networks:
+      - docker-api
+    read_only: true
+    cap_drop: [ALL]
+    deploy:
+      resources:
+        limits:
+          cpus: "0.25"
+          memory: 64M
+
+  alloy:
+    <<: *hardening
+    image: grafana/alloy:v1.21.0
+    command: ["run", "/etc/alloy/config.alloy", "--storage.path=/var/lib/alloy/data", "--server.http.listen-addr=0.0.0.0:12345"]
+    user: "473:473"
+    volumes:
+      - ./alloy/config.alloy:/etc/alloy/config.alloy:ro
+      # Positions de lecture persistées : sans elles, un redémarrage renvoie tout l'historique
+      # des conteneurs à Loki et double les comptages (constaté sur le labo WOR-91)
+      - alloy-data:/var/lib/alloy/data
+    networks:
+      - docker-api
+      - monitoring
+    cap_drop: [ALL]
+    depends_on:
+      - socket-proxy
+      - loki
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 256M
+
   grafana:
     <<: *hardening
     image: grafana/grafana:13.2.4
@@ -217,6 +267,9 @@ networks:
   monitoring: {}
   # Vault + agent ; non interne uniquement pour publier l'UI/API sur 127.0.0.1
   secrets: {}
+  # socket-proxy <-> alloy uniquement
+  docker-api:
+    internal: true
 
 volumes:
   postgres-data:
@@ -224,6 +277,7 @@ volumes:
   loki-data:
   grafana-data:
   vault-data:
+  alloy-data:
   # Secrets rendus par vault-agent : en mémoire uniquement (jamais sur disque),
   # un volume par service consommateur. uid/gid = utilisateur "vault" de l'image.
   secrets-postgres:
