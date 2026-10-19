@@ -4,17 +4,19 @@ const path = require('path');
 const GOUVERNANCE_DIR = path.resolve(__dirname, '..', '..');
 
 module.exports = {
-  sourceDir: GOUVERNANCE_DIR,
+  sourceDir: path.join(GOUVERNANCE_DIR, 'rag'), // .md sources, aussi indexés par l'assistant RAG
   coverFile: path.resolve(__dirname, '..', 'cover.md'),
   outputFile: path.join(GOUVERNANCE_DIR, 'Workshop2026-G6-Gouvernance.docx'),
-  // Une partie par fichier, chacune commence sur une nouvelle page
+  // Un .docx par partie, nommé <numéro>-<nom>.docx
+  partsOutputDir: path.join(GOUVERNANCE_DIR, 'docx'),
+  // Une partie par fichier, dans l'ordre du dossier ; chacune commence sur une nouvelle page
   parts: [
-    'ebios-rm.md',
-    'services-critiques.md',
-    'nis2-dora.md',
-    'rto-rpo.md',
-    'pca-pra.md',
-    'recommandations.md',
+    { source: 'ebios-rm.md', name: 'EBIOS-RM' },
+    { source: 'services-critiques.md', name: 'Services-critiques' },
+    { source: 'nis2-dora.md', name: 'NIS2-DORA' },
+    { source: 'rto-rpo.md', name: 'RTO-RPO' },
+    { source: 'pca-pra.md', name: 'PCA-PRA' },
+    { source: 'recommandations.md', name: 'Recommandations' },
   ],
   title: 'Workshop 2026 — Groupe 6',
   subtitle: 'PROJECT RESILIENCE-ALPHA · Dossier de gouvernance — état au 19/10/2026',
