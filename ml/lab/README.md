@@ -4,7 +4,7 @@ Plateforme de paiement **fictive** qui sert uniquement à produire des métrique
 
 | Service | Rôle | Exposition |
 |---|---|---|
-| `mock-api` | API de paiement FastAPI + SQLite, métriques Prometheus, journaux JSON | réseau interne uniquement |
+| `payment-api` | API de paiement fictive FastAPI (dossier `mock_api/`) + SQLite, métriques Prometheus, journaux JSON | réseau interne uniquement |
 | `waf` | ModSecurity + OWASP CRS (nginx) devant l'API | `WAF_BIND:WAF_PORT` (seul service joignable depuis le PC attaquant) |
 | `prometheus` | métriques (scrape 5 s) | `127.0.0.1:PROMETHEUS_PORT` |
 | `loki` + `alloy` | journaux de tous les conteneurs (label `container`) | `127.0.0.1:LOKI_PORT` |

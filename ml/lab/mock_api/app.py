@@ -23,7 +23,7 @@ from pydantic import BaseModel, Field
 DB_PATH = os.environ.get("DB_PATH", "/data/payments.db")
 TOKEN_TTL_S = 3600
 
-log = logging.getLogger("mock-api")
+log = logging.getLogger("payment-api")
 log.setLevel(logging.INFO)
 log.addHandler(logging.StreamHandler(sys.stdout))
 

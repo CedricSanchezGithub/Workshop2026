@@ -30,7 +30,9 @@ WINDOW_S = 60
 STEP_S = 10
 
 # Sélecteurs LogQL. Les audits ModSecurity sont les lignes JSON {"transaction"...} du WAF.
-API_HTTP = '{container="mock-api"} |= `"event": "http"` | json'
+# `| json | event="http"` plutôt qu'un filtre texte : indépendant de la mise en forme du JSON
+# (Python écrit `"event": "http"`, Node/Go `"event":"http"`).
+API_HTTP = '{container="payment-api"} | json | event="http"'
 WAF_AUDIT = '{container="waf"} |~ `^\\{"transaction"`'
 WAF_ACCESS = '{container="waf"} !~ `^\\{"transaction"`'
 # Marqueurs de requête « inhabituelle » dans l'URL de la ligne d'accès (encodés ou non) :

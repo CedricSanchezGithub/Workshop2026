@@ -10,7 +10,8 @@
 name: resilience-ai-lab
 
 services:
-  mock-api:
+  # Même nom de service que la plateforme (services/payment-api) : mêmes requêtes Loki/Prometheus.
+  payment-api:
     build: ./mock_api
     networks: [app]
     volumes: [api-data:/data]
@@ -31,11 +32,11 @@ services:
   waf:
     image: owasp/modsecurity-crs:nginx@sha256:7698c48a41a43138ae317feeec964d1515b861cc1d9e50617bc1cdfe9f314e1d
     depends_on:
-      mock-api: {condition: service_healthy}
+      payment-api: {condition: service_healthy}
     networks: [app]
     ports: ["${WAF_BIND:-0.0.0.0}:${WAF_PORT:-8080}:8080"]
     environment:
-      BACKEND: http://mock-api:8000
+      BACKEND: http://payment-api:8000
       PORT: "8080"
       BLOCKING_PARANOIA: "1"
       ANOMALY_INBOUND: "5"

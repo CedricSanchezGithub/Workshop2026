@@ -1,5 +1,5 @@
 // Collecte des journaux des conteneurs du labo vers Loki.
-// Label `container` = nom du service compose (mock-api, waf, ...).
+// Label `container` = nom du service compose (payment-api, waf, ...).
 // Les audits ModSecurity (lignes JSON commençant par {"transaction") et les accès
 // nginx partagent le flux du WAF ; on les sépare au moment de la requête LogQL.
 

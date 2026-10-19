@@ -33,7 +33,7 @@
       "type": "logs", "title": "Journaux API",
       "gridPos": {"x": 0, "y": 16, "w": 24, "h": 8},
       "datasource": {"type": "loki", "uid": "loki"},
-      "targets": [{"expr": "{container=\"mock-api\"}"}]
+      "targets": [{"expr": "{container=\"payment-api\"}"}]
     }
   ]
 }
