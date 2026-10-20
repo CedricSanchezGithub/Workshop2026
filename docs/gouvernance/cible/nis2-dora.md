@@ -13,7 +13,7 @@
 | Question | Réponse | Fondement |
 |---|---|---|
 | Notre entreprise fictive est-elle dans le champ de DORA ? | **Oui.** Un opérateur de paiement est un établissement de paiement, explicitement visé. | DORA (règlement UE 2022/2554), art. 2.1 b. Applicable depuis le 17/01/2025. |
-| Est-elle dans le champ de NIS2 ? | **Indirectement.** Le secteur bancaire de l'annexe I de NIS2 vise les établissements de crédit, pas les établissements de paiement en tant que tels. | NIS2 (directive UE 2022/2555), annexe I. |
+| Est-elle dans le champ de NIS2 ? | **Non.** Les établissements de paiement ne figurent pas à l'annexe I de NIS2, dont le secteur bancaire ne vise que les établissements de crédit. | NIS2 (directive UE 2022/2555), annexe I. |
 | Si les deux s'appliquaient, lequel prime ? | **DORA.** C'est un acte sectoriel qui prévoit des mesures au moins équivalentes ; il remplace NIS2 pour la gestion du risque et la notification des incidents. | NIS2, art. 4 et considérant 28. |
 | Qui est l'autorité compétente ? | L'**ACPR** pour un établissement de paiement en France. | Désignation nationale au titre de DORA. |
 | Le cadre simplifié (art. 16) s'applique-t-il ? | **Non.** Avec 158 M€ de revenu annuel et 200 partenaires, l'entreprise n'est pas une petite structure exemptée. | DORA, art. 16. |
@@ -32,7 +32,7 @@ Les biens supports (BS) sont ceux de `ebios-rm.md`. Les preuves sont **prévues*
 |---|---|---|---|---|---|
 | Cadre de gestion du risque TIC documenté | 6 | Analyse EBIOS RM, services critiques chiffrés | — | `ebios-rm.md`, `services-critiques.md` | ✅ |
 | Identifier les fonctions critiques et leurs dépendances | 8 | Services classés par priorité, biens supports reliés aux valeurs métier | Tous | Tableaux VM ↔ BS | ✅ |
-| Protection et prévention : moindre privilège, chiffrement, gestion des secrets | 9 | Filtrage WAF, secrets hors du code, privilèges limités des conteneurs | BS5, BS9, BS8 | Configuration WAF, HashiCorp Vault, revue des droits du moteur de remédiation (WOR-64) | 🟡 un seul hôte ; au 20/10, WAF en place mais l'API pas encore derrière lui, secrets de l'application hors de Vault, port de la base publié |
+| Protection et prévention : moindre privilège, chiffrement, gestion des secrets | 9 | Filtrage WAF, secrets hors du code, privilèges limités des conteneurs | BS5, BS9, BS8 | Configuration WAF, HashiCorp Vault, revue des droits du moteur de remédiation (WOR-64) | 🟡 un seul hôte ; au 20/10, API derrière le WAF, mais secrets de l'application hors de Vault et port de la base publié |
 | Détection rapide des activités anormales | 10 | Détection ML sur les métriques et journaux, alertes SIEM | BS6, BS7 | Horodatage attaque → alerte, mesuré pendant l'essai | 🟡 prévu : au 20/10, features extraites mais pas encore de modèle ni d'alerte |
 | Réponse et rétablissement : politique de continuité, reprise des fonctions critiques | 11 | **Cœur de la démo** : remédiation automatique, puis transaction fictive réussie | BS8, BS2, BS4 | Durée attaque → transaction réussie, comparée au RTO (WOR-70) | 🟡 prévu : au 20/10, moteur de remédiation pas encore codé |
 | Tests du plan de continuité | 11.6 | Scénario d'attaque rejoué et chronométré | Tous | Résultats d'essais | 🟡 un seul scénario, pas de programme annuel |
@@ -87,7 +87,9 @@ Appliqué au risque R1 (déni de service sur l'API, scénario principal pressent
 | Manuelle | 30 min à 2 h | Clients touchés, impact économique (pénalité SLA ~650 k€) | **Oui, probablement** | Notification initiale à l'ACPR, puis rapports intermédiaire et final |
 | Manuelle, longue | > 2 h | Clients, durée, impact économique | **Oui** | Idem, et incident G4 dans EBIOS |
 
-> **Attention :** le critère économique peut faire basculer l'incident en majeur **avant** le seuil de 2 h, dès que la pénalité SLA est déclenchée (43 min d'arrêt cumulé dans le mois). Il faut donc corriger la note de `services-critiques.md`, qui ne cite que le seuil de durée.
+> **Attention :** le critère économique peut faire basculer l'incident en majeur **avant** le seuil de 2 h, dès que la pénalité SLA est déclenchée (43 min d'arrêt cumulé dans le mois).
+>
+> **Incidents récurrents :** des incidents qui ne sont pas majeurs un par un, mais qui ont la même cause apparente, se sont produits au moins deux fois en 6 mois et dépassent ensemble les seuils, sont traités comme un seul incident majeur (règlement délégué (UE) 2024/1772, art. 16). Des dénis de service courts et répétés peuvent donc finir par imposer une notification.
 
 Pour R2 et R5 (injection, exfiltration), le critère « perte de données après accès malveillant » suffit, avec la criticité du service, à rendre l'incident majeur, **quelle que soit la vitesse de reprise**. Restaurer la disponibilité ne dispense pas de notifier. C'est la distinction que le sujet demande de ne pas manquer (voir WOR-39).
 

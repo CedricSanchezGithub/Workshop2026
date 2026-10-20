@@ -16,7 +16,7 @@
 
 | Niveau | À quoi il sert | D'où il vient |
 |---|---|---|
-| **Objectif métier** | Ce que l'entreprise fictive exige ; c'est ce qu'on présente à la direction | Coût d'un arrêt : au-delà de 5 min, l'incident sort de G1 ; au-delà de 30 min, la pénalité SLA et la notification DORA deviennent probables |
+| **Objectif métier** | Ce que l'entreprise fictive exige ; c'est ce qu'on présente à la direction | Coût d'un arrêt : au-delà de 5 min, l'incident sort de G1 ; au-delà de 30 min, l'incident passe en G3 : le budget SLA de 43 min par mois est presque consommé (pénalité d'environ 650 k€ au-delà) et la notification DORA devient probable |
 | **Cible du démonstrateur** | Ce qu'on vise et mesure sur le PC Hôte | Objectif métier, avec de la marge, et la contrainte du Clip Chrono : 60 s en continu entre l'attaque et le service rétabli (WOR-83) |
 
 ## 3. Objectifs par service
@@ -24,9 +24,9 @@
 | Service | Criticité | RTO métier | RPO métier | Cible démonstrateur | Mécanisme prévu |
 |---|---|---|---|---|---|
 | Traitement des transactions (API + BDD) | Vitale | **≤ 5 min** | **0** transaction confirmée perdue ou dupliquée | RTO ≤ 60 s (attaque A) · ≤ 3 min (attaque B) | Remédiation automatique (WOR-38), playbooks Ansible (WOR-44) |
-| Authentification | Vitale | ≤ 5 min | Sans objet (sans état) | Retour en même temps que l'API | Redémarrage ; après une rotation de secret, reconnexion des utilisateurs acceptée |
-| WAF / point d'entrée | Vitale | ≤ 5 min | Sans objet ; la configuration est versionnée | Pas de coupure : la règle de limitation s'ajoute à chaud | Configuration rechargée sans arrêt |
-| Journalisation et SIEM | Importante | ≤ 1 h | **0** journal perdu | Aucune perte pendant les essais | Journaux conservés **avant** toute restauration |
+| Authentification | Vitale | ≤ 5 min | Sans objet : une session perdue oblige seulement à se reconnecter | Retour en même temps que l'API | Redémarrage ; après une rotation de secret, reconnexion des utilisateurs acceptée |
+| WAF / point d'entrée | Vitale | ≤ 5 min | Sans objet ; la configuration est versionnée | Coupure de quelques secondes à chaque changement de règle, à mesurer | Pas de rechargement à chaud : le WAF redémarre quand une règle change (`config_watch`) |
+| Journalisation et SIEM | Importante | ≤ 1 h | **0** journal perdu | Aucune perte pendant les essais | Export des journaux (`scripts/export-logs.sh`) **avant** toute restauration |
 | Consultation de l'historique | Importante | ≤ 30 min | 0 | Retour en même temps que l'API | Même service que l'API |
 | Supervision, détection ML, remédiation | Support critique | ≤ 15 min | Sans objet ; le modèle est versionné | Hors périmètre de l'attaque | Relance par Docker Compose |
 | Assistant RAG | Non critique | Meilleur effort | Sans objet ; l'index peut être reconstruit | — | Réindexation |
@@ -40,7 +40,7 @@ Le RTO se décompose en étapes. Chaque pilier tient une partie du budget. Les d
 | Début de l'impact → anomalie visible dans les métriques | T1 → T2 | Infrastructure (collecte Prometheus toutes les 5 s) | ≤ 5 s | ≤ 5 s |
 | Anomalie visible → alerte ML | T2 → T3 | IA / Data (fenêtre de 60 s évaluée toutes les 10 s, alerte après deux fenêtres anormales consécutives) | ≈ 20 s | ≈ 20 s |
 | Alerte → décision de remédiation | T3 → T4 | Développement | ≤ 5 s | ≤ 5 s |
-| Décision → action terminée | T4 → T5 | Infrastructure / Développement | ≤ 15 s (limitation au WAF, redémarrage) | ≤ 2 min (blocage, restauration, rotation du secret) |
+| Décision → action terminée | T4 → T5 | Infrastructure / Développement | ≤ 15 s (redémarrage de l'API ; une limitation au WAF coûterait aussi un redémarrage du WAF) | ≤ 2 min (blocage, restauration, rotation du secret) |
 | Action terminée → transaction test réussie et données vérifiées | T5 → T6 | Développement | ≤ 10 s | ≤ 20 s |
 | **Total (RTO mesuré = T6 − T1)** | | | **≤ 60 s** | **≤ 3 min** |
 
@@ -101,7 +101,7 @@ On retient le **pire des trois essais**, pas la moyenne : un RTO se garantit, il
 
 ## 7. Ce que le code permet de tenir au 20/10
 
-- **RPO = 0 : pas tenable en l'état.** Il n'existe aucune sauvegarde de la base ; la seule remise en état repart des données de départ. Minimum avant les essais : un `pg_dump` avant chaque essai.
+- **RPO = 0 : pas tenable en l'état.** Dans le socle, l'API garde ses données en mémoire : un redémarrage, première réponse à l'attaque A, efface toutes les transactions. Il n'existe en plus aucune sauvegarde de la base. Minimum avant les essais : brancher l'API sur PostgreSQL et faire un `pg_dump` avant chaque essai.
 - **Délai de détection : pas mesurable.** Le modèle de détection n'existe pas encore ; seule l'extraction des features (fenêtre de 60 s, pas de 10 s) est codée.
 - **Vérification de la reprise (T6) : à construire.** `/health` répond toujours « ok » ; la preuve de reprise doit être une transaction de test réussie, pas ce contrôle.
 
