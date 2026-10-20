@@ -264,40 +264,37 @@ services:
           cpus: "0.5"
           memory: 384M
 
-  # API métier de paiement (WOR-35) : derrière le WAF, sur le réseau backend interne.
-  # Expose /metrics (Prometheus) et des logs JSON sur stdout (Loki) — contrat WOR-29/WOR-37.
+  # API métier de paiement (WOR-35) — application « Pay&Go » de Michael (app/), intégrée
+  # DERRIÈRE le WAF et dans l'observabilité de la plateforme.
+  # Construite depuis app/ (Express/TypeScript). Mode in-memory (pas de dépendance BDD ici) :
+  # le driver postgres de Pay&Go reste utilisable mais la persistance n'est pas encore câblée
+  # sur le Postgres de la plateforme (suivi : WOR-33/WOR-35). Expose /metrics (Prometheus,
+  # format texte) et des logs JSON sur stdout avec client_ip (Loki) — contrat WOR-29/WOR-37.
   payment-api:
     <<: *hardening
     build:
-      context: ../services/payment-api
+      context: ../app
+      dockerfile: infra/docker/Dockerfile.api
     image: resilience-alpha/payment-api:dev
+    user: node                      # non-root (durcissement WOR-63)
     environment:
-      POSTGRES_HOST: postgres
-      POSTGRES_DB: ${POSTGRES_DB:?POSTGRES_DB manquant dans .env}
-      POSTGRES_USER: ${POSTGRES_USER:?POSTGRES_USER manquant dans .env}
-      POSTGRES_PASSWORD_FILE: /run/secrets/postgres/password
-    volumes:
-      - secrets-postgres:/run/secrets/postgres:ro
+      PORT: "8080"                  # le WAF proxifie vers payment-api:8080
+      WEB_ORIGIN: "http://127.0.0.1,http://localhost"
     networks:
-      - backend      # accès à postgres + reçoit le trafic du WAF
+      - backend      # reçoit le trafic du WAF
       - monitoring   # Prometheus scrape /metrics
     cap_drop: [ALL]
-    depends_on:
-      postgres:
-        condition: service_healthy
-      vault-agent:
-        condition: service_healthy
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8080/health',timeout=3).status==200 else 1)"]
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:8080/health',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))"]
       interval: 10s
       timeout: 4s
       retries: 10
-      start_period: 40s
+      start_period: 20s
     deploy:
       resources:
         limits:
           cpus: "0.75"
-          memory: 256M
+          memory: 384M
 
   # WAF applicatif (WOR-60) : ModSecurity + OWASP CRS en reverse-proxy devant l'API/le front.
   # Point d'entrée publié unique de l'application ; bloque les injections (règles CRS 942xxx)
