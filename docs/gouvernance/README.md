@@ -1,22 +1,23 @@
 # Documents de gouvernance
 
-Ce dossier contient les documents du pilier Gouvernance au format Markdown, rangés en trois dossiers :
+Ce dossier contient les documents du pilier Gouvernance au format Markdown, rangés en quatre dossiers :
 
 | Dossier | Contenu | Évolue quand |
 |---|---|---|
 | `cible/` | Ce que l'équipe **vise et a décidé** : risques, objectifs de reprise, PCA/PRA, exigences réglementaires, recommandations | Une décision change |
 | `constat/` | Ce qui est **vérifié** dans le code et, après les essais, mesuré | À chaque fusion importante et à chaque essai |
 | `notions/` | Explications générales, indépendantes du projet : qu'est-ce qu'EBIOS RM, DORA, NIS2, un PCA/PRA, le RTO et le RPO | Rarement |
+| `autre/` | Le fonctionnement de cette documentation : règles d'écriture pour le RAG, génération des PDF, site | Quand l'outillage change |
 
-Un document ne passe jamais d'un dossier à l'autre : quand le code avance, on met à jour `constat/`. Chaque document commence par une ligne « Statut : cible », « Statut : constat » ou « Statut : notion », pour que l'assistant sache s'il cite un plan ou un fait.
+Un document ne passe jamais d'un dossier à l'autre : quand le code avance, on met à jour `constat/`. Chaque document commence par une ligne « Statut : cible », « Statut : constat », « Statut : notion » ou « Statut : autre », pour que l'assistant sache s'il cite un plan ou un fait.
 
 Ces documents ont trois usages :
 
 1. **Base de connaissances de l'assistant RAG** (WOR-56) : l'assistant les indexe pour répondre aux questions des opérateurs pendant un incident.
-2. **Source des PDF** : le dossier de gouvernance et ses parties sont générés à partir d'eux (voir « Générer les PDF »).
-3. **Source du site de documentation** : `site/` en fait un site lisible, avec recherche (voir « Le site de documentation »).
+2. **Source des PDF** : le dossier de gouvernance et ses parties sont générés à partir d'eux (voir `autre/generer-les-pdf.md`).
+3. **Source du site de documentation** : `site/` en fait un site lisible, avec recherche (voir `autre/site.md`).
 
-Ces .md sont la **version de référence**. Les PDF sont des copies générées, à ne jamais modifier à la main.
+Ces .md sont la **version de référence**. Les PDF sont des copies générées, à ne jamais modifier à la main. Avant d'écrire un document, lire `autre/rediger-pour-le-rag.md`.
 
 ## À quoi sert l'assistant RAG
 
@@ -45,69 +46,3 @@ Attaque ──► Supervision ──► Détection ML ──► Moteur de reméd
 | `constat/etat-implementation.md` | Ce que le code confirme, contredit ou n'implémente pas encore ; vulnérabilités relevées | « La restauration de la base existe-t-elle ? » · « Quels écarts reste-t-il avant les essais ? » |
 
 `cible/pca-pra.md` est le document le plus utile en cours d'incident, mais il décrit des actions qui ne sont pas toutes codées : `constat/etat-implementation.md` dit lesquelles existent. Les autres documents servent surtout à expliquer les décisions.
-
-## Règles d'écriture pour un bon résultat avec le RAG
-
-L'assistant ne lit pas un document en entier : il récupère des **morceaux**, découpés en général au niveau des titres, et répond à partir de ceux-là. D'où ces règles :
-
-- **Une section doit se comprendre seule.** Éviter « voir plus haut » ou « comme indiqué précédemment » : le morceau voisin ne sera peut-être pas récupéré. Les fiches scénarios du PCA/PRA répètent volontairement le risque, les signaux et l'objectif.
-- **Des titres explicites.** « Fiche S2 — Injection applicative et altération de données » se retrouve mieux que « Cas 2 ».
-- **Nommer les choses de la même façon partout** : « moteur de remédiation », « attaque A », « R1 », « WOR-71 ». L'assistant fait le lien grâce aux mots.
-- **Garder des tableaux simples** : une idée par ligne, sans cellules fusionnées.
-- **Ranger chaque information au bon endroit** : un plan ou un objectif dans `cible/`, un fait vérifié ou une mesure dans `constat/`. L'assistant ne doit pas présenter un plan comme une réalité.
-- **Ne jamais écrire de secret** (mot de passe, clé, jeton) **ni de donnée réelle** dans ces fichiers : tout ce qui est indexé peut ressortir dans une réponse (WOR-21, WOR-62).
-
-## Pour l'indexation (pilier IA / Data)
-
-- **Indexer** : les documents de `notions/`, `cible/` et `constat/`.
-- **Ne pas indexer** : ce README, qui décrit le dossier et non la plateforme.
-- **Garder le chemin dans la source citée** (`cible/…` ou `constat/…`) : c'est ce qui permet de distinguer un plan d'un fait. L'en-tête `---` des fichiers est supprimé à l'indexation, d'où la ligne de statut dans le texte.
-- **Découpage conseillé** : par titre de niveau 2 ou 3, en gardant le titre du document et le titre de la section dans chaque morceau, pour que l'assistant puisse citer sa source (« d'après `cible/pca-pra.md`, fiche S1 »).
-- **Réindexer** après chaque modification de ces fichiers.
-
-## Générer les PDF
-
-```
-cd scripts/pdf
-npm install
-npm run build
-```
-
-Le générateur utilise le Chrome ou l'Edge déjà installé (sinon, indiquer son chemin dans `CHROME_PATH`). Il produit, dans `livrables/gouvernance/` :
-
-- `Workshop2026-G6-Gouvernance.pdf` : le dossier complet ;
-- `0X-<Partie>.pdf` : une partie par fichier (`01-EBIOS-RM.pdf`, `05-PCA-PRA.pdf`, `07-Etat-implementation.pdf`…).
-
-Les PDF sont rangés hors de `docs/` exprès : l'assistant indexe aussi les PDF de `docs/`, ils feraient doublon avec ces .md.
-
-Pour ajouter un document : créer le .md dans `cible/` ou `constat/`, puis l'inscrire dans `parts` de `scripts/pdf/src/config.js`.
-
-## Le site de documentation
-
-`site/` est un site Astro + Starlight qui lit directement ces .md, sans les copier ni les modifier : le titre `#` de chaque document devient le titre de la page. Pour chaque thème, le menu présente d'abord la notion générale, puis le document du projet.
-
-```
-docker compose -f docs/gouvernance/site/docker-compose.yml up --build -d
-```
-
-Puis ouvrir http://127.0.0.1:8095. Le site n'écoute que sur la machine locale : `constat/` liste les failles de la plateforme, il ne doit pas être visible sur le réseau `RESILIENCE-G6`.
-
-**Ne pas lancer `npm install` dans `site/`.** L'assistant RAG indexe tous les .md de `docs/`, y compris ceux de `site/node_modules/` s'il existe : des milliers de fichiers sans rapport viendraient polluer ses réponses. Le site se construit dans Docker, où ce dossier n'apparaît pas.
-
-Pour publier un nouveau document dans le site, l'ajouter au menu (`sidebar`) dans `site/astro.config.mjs`.
-
-### Déployer le site sur une autre machine (Raspberry Pi…)
-
-`site/deploy.sh` ne récupère que `docs/gouvernance/` du dépôt (clone partiel), construit l'image et lance le site. Relancé, il ne reconstruit que si un fichier de la gouvernance a changé.
-
-```
-curl -fsSL https://raw.githubusercontent.com/CedricSanchezGithub/Workshop2026/main/docs/gouvernance/site/deploy.sh | bash
-sudo tailscale serve --bg 8095
-```
-
-`tailscale serve` rend le site accessible en HTTPS aux seules machines du tailnet. Ne pas utiliser `tailscale funnel`, qui le publierait sur Internet. Mise à jour automatique toutes les 30 minutes :
-
-```
-*/30 * * * * ~/workshop2026/docs/gouvernance/site/deploy.sh >> ~/gouvernance-site.log 2>&1
-```
-

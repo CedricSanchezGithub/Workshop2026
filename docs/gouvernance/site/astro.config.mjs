@@ -37,6 +37,11 @@ export default defineConfig({
         ]),
         theme('Recommandations', [doc('cible/recommandations', 'Recommandations à la direction')]),
         theme('Constat', [doc('constat/etat-implementation', "État d'implémentation")]),
+        theme('Autre', [
+          doc('autre/rediger-pour-le-rag', 'Rédiger pour le RAG'),
+          doc('autre/generer-les-pdf', 'Générer les PDF'),
+          doc('autre/site', 'Le site de documentation'),
+        ]),
       ],
     }),
   ],

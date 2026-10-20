@@ -11,6 +11,7 @@ COPY README.md /gouvernance/README.md
 COPY notions/ /gouvernance/notions/
 COPY cible/ /gouvernance/cible/
 COPY constat/ /gouvernance/constat/
+COPY autre/ /gouvernance/autre/
 RUN npm run build
 
 FROM nginxinc/nginx-unprivileged:1.30-alpine

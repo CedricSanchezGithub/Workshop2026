@@ -6,7 +6,7 @@ import { readdir, readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 
 // Dossiers publiés, dans l'ordre ; le README du dossier sert de page d'accueil
-const SECTIONS = ['notions', 'cible', 'constat'];
+const SECTIONS = ['notions', 'cible', 'constat', 'autre'];
 const HOME = { path: 'README.md', id: 'index' };
 
 async function listFiles(base: string) {
