@@ -241,7 +241,7 @@ services:
       - grafana-data:/var/lib/grafana
       - secrets-grafana:/run/secrets/grafana:ro
     ports:
-      - "${GRAFANA_BIND:-127.0.0.1}:3000:3000"
+      - "${GRAFANA_BIND:-127.0.0.1}:${GRAFANA_PORT:-3000}:3000"
     networks:
       - monitoring
     cap_drop: [ALL]
@@ -354,7 +354,7 @@ services:
       # Surcharge de l'include proxy : résolution différée du backend (le WAF démarre sans l'API)
       - ./waf/templates/includes/proxy_backend.conf.template:/etc/nginx/templates/includes/proxy_backend.conf.template:ro
     ports:
-      - "${WAF_BIND:-127.0.0.1}:8080:8080"
+      - "${WAF_BIND:-127.0.0.1}:${WAF_PORT:-8080}:8080"
     networks:
       - edge      # port publié (attaquant -> WAF)
       - backend   # WAF -> payment-api (réseau métier interne)
