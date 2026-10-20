@@ -16,7 +16,7 @@
 
 ## 0. Avant toute recommandation : ce que l'équipe doit livrer d'ici les essais
 
-Au 20/10, plusieurs mécanismes sur lesquels reposent ces recommandations ne sont pas encore codés : moteur de remédiation, modèle de détection, WAF du socle, sauvegarde de la base. Sans eux, les éléments vérifiables cités ci-dessous resteront vides. La liste priorisée est dans `constat/etat-implementation.md` §4.
+Au 20/10, plusieurs mécanismes sur lesquels reposent ces recommandations ne sont pas encore codés : moteur de remédiation, modèle de détection, sauvegarde de la base ; l'API n'est pas encore derrière le WAF. Sans eux, les éléments vérifiables cités ci-dessous resteront vides. La liste priorisée est dans `constat/etat-implementation.md` §4.
 
 ## 1. Les arbitrages que nous avons faits
 

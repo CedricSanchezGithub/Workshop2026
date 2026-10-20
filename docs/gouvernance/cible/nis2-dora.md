@@ -32,7 +32,7 @@ Les biens supports (BS) sont ceux de `ebios-rm.md`. Les preuves sont **prévues*
 |---|---|---|---|---|---|
 | Cadre de gestion du risque TIC documenté | 6 | Analyse EBIOS RM, services critiques chiffrés | — | `ebios-rm.md`, `services-critiques.md` | ✅ |
 | Identifier les fonctions critiques et leurs dépendances | 8 | Services classés par priorité, biens supports reliés aux valeurs métier | Tous | Tableaux VM ↔ BS | ✅ |
-| Protection et prévention : moindre privilège, chiffrement, gestion des secrets | 9 | Filtrage WAF, secrets hors du code, privilèges limités des conteneurs | BS5, BS9, BS8 | Configuration WAF, HashiCorp Vault, revue des droits du moteur de remédiation (WOR-64) | 🟡 un seul hôte ; au 20/10, WAF absent du socle, secrets de l'application hors de Vault, port de la base publié |
+| Protection et prévention : moindre privilège, chiffrement, gestion des secrets | 9 | Filtrage WAF, secrets hors du code, privilèges limités des conteneurs | BS5, BS9, BS8 | Configuration WAF, HashiCorp Vault, revue des droits du moteur de remédiation (WOR-64) | 🟡 un seul hôte ; au 20/10, WAF en place mais l'API pas encore derrière lui, secrets de l'application hors de Vault, port de la base publié |
 | Détection rapide des activités anormales | 10 | Détection ML sur les métriques et journaux, alertes SIEM | BS6, BS7 | Horodatage attaque → alerte, mesuré pendant l'essai | 🟡 prévu : au 20/10, features extraites mais pas encore de modèle ni d'alerte |
 | Réponse et rétablissement : politique de continuité, reprise des fonctions critiques | 11 | **Cœur de la démo** : remédiation automatique, puis transaction fictive réussie | BS8, BS2, BS4 | Durée attaque → transaction réussie, comparée au RTO (WOR-70) | 🟡 prévu : au 20/10, moteur de remédiation pas encore codé |
 | Tests du plan de continuité | 11.6 | Scénario d'attaque rejoué et chronométré | Tous | Résultats d'essais | 🟡 un seul scénario, pas de programme annuel |
@@ -46,7 +46,7 @@ Les biens supports (BS) sont ceux de `ebios-rm.md`. Les preuves sont **prévues*
 
 | Exigence | Article | Ce que le prototype montre | Statut |
 |---|---|---|---|
-| Processus de détection, journalisation et suivi des incidents | 17 | Chaque incident détecté est horodaté et conservé dans le SIEM | ✅ |
+| Processus de détection, journalisation et suivi des incidents | 17 | Chaque incident détecté est horodaté et conservé dans le SIEM | 🟡 au 20/10, blocages du WAF et accès à Vault journalisés et visibles dans le tableau SOC/SIEM ; pas encore de règle d'alerte ni de suivi d'incident |
 | Classification selon les critères réglementaires | 18 | Grille appliquée au scénario de la démo (voir section 3) | ✅ sur papier, à partir des mesures réelles |
 | Notification des incidents majeurs à l'ACPR : initiale, intermédiaire, finale | 19 | Les journaux du SIEM contiennent les informations nécessaires. Aucune notification réelle n'est envoyée. | 🟡 |
 | Information des clients touchés | 19.3 | — | ❌ |

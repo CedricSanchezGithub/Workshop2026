@@ -2,7 +2,7 @@
 
 > **Statut : constat.** Ce document décrit ce qui a été vérifié dans le code, avec ses sources. Les objectifs et les plans sont dans `cible/`.
 
-> Responsable : Cédric · Version 0.1 du 20/10/2026 · Relevé sur `main` après la fusion de la PR #14 (code de la plateforme dans `app/`)
+> Responsable : Cédric · Version 0.1 du 20/10/2026 · Relevé sur `main` après la fusion des PR #14 (code de la plateforme dans `app/`), #16 (WAF) et #17 (SIEM)
 >
 > Les documents de gouvernance ont été écrits avant le code. Ce registre dit, pour chaque hypothèse importante, si le code la **confirme**, la **contredit** ou ne l'a **pas encore implémentée**. Il est à mettre à jour après chaque fusion importante et avant les essais (WOR-73).
 
@@ -17,7 +17,8 @@
 | Extraction des features de détection (fenêtre de 60 s, pas de 10 s) | Implémentée | `ml/features/extract.py` |
 | Modèle de détection, envoi des alertes | **Absent** | `ml/training/`, `ml/inference/` vides |
 | Moteur de remédiation | **Absent** | `services/remediation/README.md` : « À implémenter » |
-| WAF | **Seulement dans le labo IA**, pas dans le socle | `ml/lab/docker-compose.lab.yml`, `infra/README.md` |
+| WAF ModSecurity + OWASP CRS, en mode bloquant, seul point d'entrée publié du socle | Implémenté. **Mais l'API n'est pas encore derrière lui** : le trafic légitime reçoit une erreur 502, les injections sont bloquées en 403. Pas d'interface pour ajouter un blocage à chaud : les règles changent par fichier, puis redémarrage | `infra/docker-compose.yml`, `infra/waf/README.md` |
+| Tableau de bord SOC / SIEM dans Grafana : blocages du WAF, accès à Vault, flux corrélé WAF · Vault · PostgreSQL | Implémenté ; **aucune règle d'alerte** | `infra/grafana/provisioning/dashboards/soc-siem.json` |
 | Tableau de bord d'incident (WOR-40) | **Absent** ; la page d'administration affiche des statuts fixes | `services/dashboard/`, `app/backend/api/src/main.ts` |
 | Remise à l'état sain | Implémentée ; **efface base, journaux, métriques et Vault** | `scripts/reset-known-good.sh` |
 | Assistant RAG en lecture seule | Implémenté | `rag/docker-compose.rag.yml` |
@@ -38,6 +39,7 @@ Il existe **quatre déploiements Docker Compose séparés** (application, socle,
 | Hôte unique, aucune sauvegarde hors de l'hôte | `cible/nis2-dora.md`, `cible/pca-pra.md` S7 | **Confirmé** | Inventaire Ansible local uniquement |
 | Secrets dans HashiCorp Vault | `cible/ebios-rm.md` BS9 | **Partiellement contredit** | Vrai pour le socle. L'application a son mot de passe de base en clair dans son fichier Compose, et sa clé d'API OpenAI en variable d'environnement |
 | Collecte toutes les 5 s, détection en 20 à 70 s | `cible/rto-rpo.md` §4 | **En partie confirmé** | Collecte à 5 s et fenêtre de 60 s confirmées. Le délai de détection ne peut pas être mesuré : il n'y a pas encore de détecteur |
+| Une injection altère des données, qu'il faut ensuite restaurer | `cible/pca-pra.md` S2 | **Contredit par le WAF** | Le WAF du socle bloque 9 vecteurs sur 10 de l'attaque B en 403, avant l'API (`infra/waf/README.md`). La protection est démontrée ; la restauration ne peut pas l'être tant qu'aucune injection n'atteint la base |
 | Vérification de la reprise par une transaction réelle | `cible/rto-rpo.md` §1 | **À construire** | `/health` répond toujours « ok » sans rien vérifier : il ne peut pas servir de preuve de reprise |
 
 ## 3. Nouveaux constats à intégrer à l'analyse de risques (WOR-67)
@@ -56,11 +58,11 @@ Il existe **quatre déploiements Docker Compose séparés** (application, socle,
 
 Par ordre de priorité, pour que la démo prouve ce que la gouvernance affirme :
 
-1. **Brancher l'API de l'application sur le socle** (Prometheus, Loki, WAF), et ne garder qu'une base. Infrastructure, Développement.
+1. **Brancher l'API de l'application sur le socle**, derrière le WAF (qui renvoie aujourd'hui 502 faute de backend), collectée par Prometheus et Loki, avec une seule base. Infrastructure, Développement.
 2. **Remplacer `/health` par une vérification réelle** : base joignable et transaction de test réussie. Développement.
 3. **Construire le moteur de remédiation** (WOR-38), avec la vérification de la reprise. Développement.
 4. **Entraîner le modèle et envoyer les alertes** (WOR-52, WOR-53). IA / Data.
-5. **Recâbler les attaques A et B** sur les vraies routes de l'API. L'attaque B doit **écrire** en base pour que la réponse « restauration » ait un sens. Cybersécurité.
+5. **Recâbler les attaques A et B** sur les vraies routes de l'API. Pour l'attaque B, **décider ce qu'on démontre** : le blocage par le WAF (déjà obtenu), ou la restauration, qui suppose qu'une injection passe le WAF et écrive en base. Cybersécurité, Gouvernance.
 6. **Une sauvegarde de la base avant chaque essai**, au minimum un `pg_dump` horodaté, conservé hors des volumes purgés. Infrastructure.
 7. **Fermer le port 55432 et passer les secrets de l'application dans Vault.** Cybersécurité.
 8. **Copier les journaux avant toute remise à l'état sain**, pour garder les preuves des essais. Infrastructure.

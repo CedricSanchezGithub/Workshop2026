@@ -29,7 +29,7 @@ Les 35 tickets communs (Pilotage, Cadrage, Intégration, Livrables) n'ont pas en
 
 ## Décisions en attente avec les autres piliers
 
-- **Avant les essais** : moteur de remédiation, modèle de détection, WAF du socle et sauvegarde de la base ne sont pas encore codés (partie « État d'implémentation »).
+- **Avant les essais** : moteur de remédiation, modèle de détection et sauvegarde de la base ne sont pas encore codés ; le WAF est en place mais l'API n'est pas encore derrière lui (partie « État d'implémentation »).
 
 - **Restauration de la base après une injection** : un snapshot seul fait perdre des transactions confirmées, alors que l'objectif est zéro. Proposition : snapshot puis rejeu des transactions légitimes (Michael, Reza).
 - **Délai de détection compatible avec le Clip Chrono de 60 s** : la collecte passe déjà toutes les 5 s ; reste la détection, entre 20 et 70 s selon le remplissage de la fenêtre de 60 s, à mesurer (Léa).
