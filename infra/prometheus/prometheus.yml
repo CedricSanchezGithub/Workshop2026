@@ -19,6 +19,11 @@ scrape_configs:
     static_configs:
       - targets: ["grafana:3000"]
 
+  # API métier (WOR-35) : signaux du scénario A (débit, latence, 5xx, payments_total)
+  - job_name: payment-api
+    static_configs:
+      - targets: ["payment-api:8080"]
+
   - job_name: alloy
     static_configs:
       - targets: ["alloy:12345"]

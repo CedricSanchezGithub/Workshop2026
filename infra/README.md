@@ -57,9 +57,9 @@ Console SQL : `docker compose exec postgres sh -c 'psql -U "$POSTGRES_USER" -d "
 
 | Réseau | Services | Particularité |
 |---|---|---|
-| `backend` | postgres, waf (+ futurs services métier) | `internal: true` : aucun accès sortant, aucun port publiable |
+| `backend` | postgres, payment-api, waf (+ futurs services métier) | `internal: true` : aucun accès sortant, aucun port publiable |
 | `edge` | waf | Périmètre exposé : seul le WAF y publie un port (entrée de l'application) |
-| `monitoring` | prometheus, loki, grafana | Seul Grafana est publié |
+| `monitoring` | prometheus, loki, grafana, payment-api | Seul Grafana est publié ; payment-api y expose `/metrics` |
 | `secrets` | vault, vault-agent | Vault publié sur 127.0.0.1 uniquement |
 | `docker-api` | socket-proxy, alloy | `internal: true` : seul Alloy peut interroger le proxy du socket Docker |
 
