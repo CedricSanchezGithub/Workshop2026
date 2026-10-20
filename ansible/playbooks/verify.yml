@@ -51,8 +51,9 @@
 
     - name: Aucun secret dans l'environnement des conteneurs
       ansible.builtin.assert:
-        # Les variables *_FILE (chemin vers le fichier rendu par vault-agent) sont attendues
-        that: compose_env.stdout is not search('(PASSWORD|SECRET|TOKEN)[A-Z_]*(?<!_FILE)=')
+        # Les variables *_FILE (chemin vers le fichier rendu par vault-agent) sont attendues.
+        # SERVER_TOKENS est une directive nginx du WAF (masque la version), pas un secret.
+        that: compose_env.stdout is not search('(PASSWORD|SECRET|TOKEN)[A-Z_]*(?<!_FILE)(?<!SERVER_TOKENS)=')
         fail_msg: "Un conteneur reçoit un secret en variable d'environnement (visible via docker inspect)."
         quiet: true
 
