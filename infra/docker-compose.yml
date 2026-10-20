@@ -108,6 +108,10 @@ services:
       - secrets-postgres:/run/secrets/postgres:ro
     networks:
       - backend
+    # Moindre privilège (WOR-63) : l'entrypoint prépare le datadir (chown) puis bascule sur
+    # l'utilisateur postgres (su-exec). Seules ces capacités sont nécessaires.
+    cap_drop: [ALL]
+    cap_add: [CHOWN, DAC_OVERRIDE, FOWNER, SETGID, SETUID]
     depends_on:
       vault-agent:
         condition: service_healthy
@@ -291,6 +295,8 @@ services:
     networks:
       - edge      # port publié (attaquant -> WAF)
       - backend   # WAF -> payment-api (réseau métier interne)
+    # nginx tourne déjà en utilisateur non-root ; aucune capacité nécessaire (WOR-63)
+    cap_drop: [ALL]
     # 502 tant que le backend est absent ; curl sans -f sort 0 dès que nginx répond => WAF up
     healthcheck:
       test: ["CMD", "curl", "-sS", "-o", "/dev/null", "http://localhost:8080/"]

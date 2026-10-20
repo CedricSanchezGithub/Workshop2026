@@ -68,8 +68,10 @@ Console SQL : `docker compose exec postgres sh -c 'psql -U "$POSTGRES_USER" -d "
 - **Versions figées** (`postgres:18.6-alpine`, `prom/prometheus:v3.15.0`, `grafana/loki:3.7.8`,
   `grafana/grafana:13.2.4`, `hashicorp/vault:2.2.0`, `grafana/alloy:v1.21.0`, `wollomatic/socket-proxy:1.13.1`) : un déploiement de jeudi doit être identique à celui de lundi.
 - **Scrape toutes les 5 s** : la détection doit tenir dans les 60 s du Clip Chrono.
-- **Durcissement de base** : `no-new-privileges`, `cap_drop: ALL` sur les services non-root,
-  limites CPU et mémoire, rotation des journaux Docker (3 × 10 Mo).
+- **Durcissement** (WOR-63, posture détaillée : `docs/governance/durcissement.md`) :
+  `no-new-privileges` et `cap_drop: ALL` sur **tous** les conteneurs (capacités nécessaires
+  réintroduites explicitement, ex. postgres), conteneurs non-root, réseaux segmentés, limites
+  CPU/mémoire, rotation des journaux Docker (3 × 10 Mo). Vérifié par `verify.yml`.
 - **Postgres 18** : le volume est monté sur `/var/lib/postgresql` (nouvelle disposition de l'image 18).
 - **Loki** : image distroless sans shell, donc pas de healthcheck Docker ; sa disponibilité est
   contrôlée par `verify.yml` (`/ready`) et par Prometheus (`up{job="loki"}`).
