@@ -1,0 +1,3 @@
+import { CircleHelp, CreditCard, ShieldCheck } from 'lucide-react';
+
+export function HelpPage() { return <div className="page-wrap narrow-page"><div className="page-heading"><div><h1>Aide</h1><p>Les réponses utiles pour gérer vos trajets.</p></div></div><div className="help-grid"><div className="large-help-card"><ShieldCheck size={21} /><h2>Paiement</h2><p>Le paiement est vérifié avant la confirmation de la réservation.</p></div><div className="large-help-card"><CreditCard size={21} /><h2>Annuler un billet</h2><p>Ouvrez une réservation confirmée pour demander un remboursement.</p></div><div className="faq-card"><CircleHelp size={20} /><h3>Une question ?</h3><p>Utilisez l’aide trajet pour les horaires, les prix et les filtres.</p></div></div></div>; }

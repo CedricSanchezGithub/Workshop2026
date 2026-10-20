@@ -1,0 +1,67 @@
+name: paygo
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: payandgo
+      POSTGRES_USER: payandgo
+      POSTGRES_PASSWORD: payandgo
+    ports:
+      - "${PAYANDGO_DB_PORT:-55432}:5432"
+    volumes:
+      - payandgo-postgres:/var/lib/postgresql/data
+      - ./database/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U payandgo -d payandgo"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  payment-api:
+    build:
+      context: ..
+      dockerfile: infra/docker/Dockerfile.api
+    environment:
+      PORT: 4000
+      WEB_ORIGIN: http://localhost:5500
+      STORAGE_DRIVER: postgres
+      QUEUE_DRIVER: postgres
+      DATABASE_URL: postgres://payandgo:payandgo@postgres:5432/payandgo
+      ADMIN_EMAILS: admin@payandgo.local
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4o-mini}
+      OPENAI_BASE_URL: ${OPENAI_BASE_URL:-https://api.openai.com/v1}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "${PAYANDGO_API_PORT:-4400}:4000"
+
+  payment-worker:
+    build:
+      context: ..
+      dockerfile: infra/docker/Dockerfile.api
+    command: ["node", "node_modules/tsx/dist/cli.mjs", "backend/services/payment-worker/src/main.ts"]
+    environment:
+      STORAGE_DRIVER: postgres
+      QUEUE_DRIVER: postgres
+      DATABASE_URL: postgres://payandgo:payandgo@postgres:5432/payandgo
+      QUEUE_POLL_MS: 200
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ..
+      dockerfile: infra/docker/Dockerfile.web
+      args:
+        VITE_PAYMENT_API_URL: http://localhost:4400
+    depends_on:
+      - payment-api
+    ports:
+      - "${PAYANDGO_WEB_PORT:-5500}:80"
+
+volumes:
+  payandgo-postgres:
