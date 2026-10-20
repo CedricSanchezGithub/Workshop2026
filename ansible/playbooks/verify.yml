@@ -57,6 +57,26 @@
         fail_msg: "Un conteneur reçoit un secret en variable d'environnement (visible via docker inspect)."
         quiet: true
 
+    - name: Inspecter le durcissement des conteneurs
+      ansible.builtin.command:
+        cmd: "docker inspect --format '{{ '{{' }}.Name{{ '}}' }}|{{ '{{' }}json .HostConfig.SecurityOpt{{ '}}' }}|{{ '{{' }}.HostConfig.CapDrop{{ '}}' }}' {{ compose_containers.stdout_lines | join(' ') }}"
+      register: compose_sec
+      changed_when: false
+
+    - name: Tous les conteneurs durcis (no-new-privileges + cap_drop ALL, WOR-63)
+      ansible.builtin.assert:
+        # Moindre privilège sur TOUT conteneur du projet : interdiction d'élever ses droits,
+        # et abandon de toutes les capacités Linux (celles réellement nécessaires sont
+        # réintroduites explicitement par cap_add, ex. postgres).
+        that:
+          - compose_sec.stdout_lines | reject('search', 'no-new-privileges') | list | length == 0
+          - compose_sec.stdout_lines | reject('search', 'ALL') | list | length == 0
+        fail_msg: >-
+          Un conteneur n'est pas durci (no-new-privileges ou cap_drop ALL manquant) :
+          {{ compose_sec.stdout_lines | reject('search', 'no-new-privileges') | list
+             + (compose_sec.stdout_lines | reject('search', 'ALL') | list) }}
+        quiet: true
+
     - name: Prometheus est prêt
       ansible.builtin.uri:
         url: http://127.0.0.1:9090/-/ready
