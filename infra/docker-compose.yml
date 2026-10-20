@@ -382,6 +382,33 @@ services:
           cpus: "0.5"
           memory: 256M
 
+  # Trafic légitime simulé (WOR-50/91) : voyageurs fictifs qui se connectent et paient à travers le
+  # WAF. Sert à l'entraînement du détecteur ET pendant la démo (une plateforme sans aucun client est
+  # elle-même anormale pour le modèle). Une réplique = une IP source distincte sur le réseau edge.
+  #   docker compose --profile demo up -d legit-traffic
+  legit-traffic:
+    <<: *hardening
+    profiles: ["demo"]
+    build:
+      context: ../ml/lab/traffic
+    image: resilience-alpha/legit-traffic:dev
+    environment:
+      TARGET: "http://waf:8080"
+      USERS: "3"
+    networks:
+      - edge
+    read_only: true
+    cap_drop: [ALL]
+    depends_on:
+      waf:
+        condition: service_healthy
+    deploy:
+      replicas: 4
+      resources:
+        limits:
+          cpus: "0.2"
+          memory: 96M
+
 networks:
   # Données métier : aucun accès sortant, aucun port publiable
   backend:

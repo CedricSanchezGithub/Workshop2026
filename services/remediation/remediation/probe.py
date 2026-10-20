@@ -18,6 +18,13 @@ from remediation import config
 BOOKING = {"bookingId": "booking_1", "amountCents": 3900, "currency": "EUR"}
 
 
+async def _set_host(request: httpx.Request) -> None:
+    # Host = nom du serveur du WAF : avec une IP en Host (127.0.0.1:8081), la règle CRS 920350 se
+    # déclenche à chaque sonde et pollue les audits utilisés par le détecteur. httpx recalcule Host
+    # depuis l'URL : on le remplace juste avant l'envoi.
+    request.headers["Host"] = "resilience-alpha"
+
+
 @dataclass
 class ProbeResult:
     ok: bool
@@ -45,7 +52,8 @@ class Probe:
 
     def _client(self) -> httpx.AsyncClient:
         return httpx.AsyncClient(base_url=self.base_url, timeout=5, transport=self.transport,
-                                 headers={"User-Agent": "resilience-remediation-probe/1.0"})
+                                 headers={"User-Agent": "resilience-remediation-probe/1.0"},
+                                 event_hooks={"request": [_set_host]})
 
     async def health(self) -> ProbeResult:
         start = time.monotonic()
