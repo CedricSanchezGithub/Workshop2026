@@ -65,10 +65,10 @@ Les seuils viennent du coût d'un arrêt (`services-critiques.md`).
 - **Risque EBIOS :** R1 (hacktiviste, ER1) · gravité G4 si non traité
 - **Signaux :** latence et taux d'erreurs 5xx en forte hausse, débit anormal depuis une ou quelques sources, transactions en échec
 - **Actions automatiques :**
-  1. Limitation de débit au WAF pour la ou les sources identifiées
+  1. Limitation de débit pour la ou les sources identifiées (à construire : le WAF n'en a pas, et toute nouvelle règle le redémarre)
   2. Redémarrage propre de l'API si elle ne répond plus
   3. Vérification : transaction test réussie, latence revenue au niveau normal
-- **Données :** aucune restauration, la base n'est pas touchée
+- **Données :** aucune restauration, la base n'est pas touchée. Au 20/10, l'API du socle garde ses données en mémoire : le redémarrage (action 2) les efface
 - **Objectif :** RTO ≤ 5 min (cible démonstrateur ≤ 60 s) · RPO = 0
 - **Escalade :** N1 si l'attaque reprend depuis d'autres sources après la limitation
 - **Retour à la normale :** limitation levée après 30 min sans trafic anormal, ou sur décision de l'opérateur
@@ -161,10 +161,10 @@ Quand la reprise automatique échoue, on maintient ce qui peut l'être :
 | Élément | Où se trouve la référence saine | Comment on restaure | Fréquence | Responsable |
 |---|---|---|---|---|
 | Code et configuration des services | Dépôt Git, version taguée (WOR-80) | Redéploiement Docker Compose et Ansible | À chaque livraison | Reza |
-| Règles du WAF | Dépôt Git | Rechargement à chaud | À chaque modification | Axel |
+| Règles du WAF | Dépôt Git | Redémarrage du WAF (pas de rechargement à chaud) | À chaque modification | Axel |
 | Secrets | HashiCorp Vault, sur le PC Hôte | Rotation puis redémarrage des services concernés | Après tout incident d'intégrité | Axel |
 | Base de données | **Aucune sauvegarde au 20/10.** Cible : snapshot + journal des transactions (`rto-rpo.md` §5) | Restauration du snapshot puis rejeu | Minimum : un `pg_dump` avant chaque essai | Reza, Michael |
-| Journaux | Loki, rétention 7 jours, sur le PC Hôte | **Jamais écrasés** ; copiés avant toute restauration. Au 20/10, la remise à l'état sain les supprime sans copie | En continu | Axel |
+| Journaux | Loki, rétention 7 jours, sur le PC Hôte | **Jamais écrasés** ; copiés avant toute restauration avec `scripts/export-logs.sh`. Au 20/10, la remise à l'état sain n'appelle pas cet export : il faut le lancer à la main | En continu | Axel |
 | Modèle ML | Dépôt Git (`ml/`) | Rechargement de la version validée | À chaque entraînement | Léa |
 | Index du RAG | Documents du dépôt | Réindexation | À chaque mise à jour des documents | Léa |
 
@@ -176,10 +176,10 @@ Quand la reprise automatique échoue, on maintient ce qui peut l'être :
 |---|---|---|---|
 | Opérateur d'astreinte | Dès N0 | Alerte et état de la reprise sur le tableau de bord | Automate |
 | Partenaires commerçants | Dès N1 si leurs transactions échouent | Nature de la gêne, heure de reprise estimée | Communication |
-| ACPR, incident majeur au sens de DORA | Notification initiale dans les 4 h après la classification en majeur (et au plus tard 24 h après la détection), rapport intermédiaire sous 72 h, rapport final sous 1 mois | Formulaire réglementaire, à partir des journaux du SIEM | Conformité |
+| ACPR, incident majeur au sens de DORA | Notification initiale dans les 4 h après la classification en majeur (et au plus tard 24 h après la détection), rapport intermédiaire sous 72 h après la notification initiale, rapport final sous 1 mois après le dernier rapport intermédiaire | Formulaire réglementaire, à partir des journaux du SIEM | Conformité |
 | CNIL | Sous 72 h en cas de violation de données personnelles | Notification RGPD | DPO |
 
-Les délais de notification DORA sont à vérifier sur le texte officiel avant le rendu final. L'assistant RAG peut préparer un brouillon de notification à partir des journaux ; un humain le valide et l'envoie.
+Délais DORA : règlement délégué (UE) 2025/301. L'assistant RAG peut préparer un brouillon de notification à partir des journaux ; un humain le valide et l'envoie.
 
 ## 8. Risques résiduels après la reprise
 

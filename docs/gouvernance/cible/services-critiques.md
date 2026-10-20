@@ -54,7 +54,7 @@ La perte directe reste modeste. **Le vrai coût vient des effets de seuil** : la
 | Rang | Service | Criticité | Pourquoi | Dégradation acceptable |
 |---|---|---|---|---|
 | 1 | Traitement des transactions (API de paiement et base de données) | **Vitale** | Porte directement le revenu et l'engagement envers les partenaires | Aucune |
-| 2 | Authentification | **Vitale** | Sans elle, aucune transaction ne peut être initiée. Intégrée à l'API, avec des sessions stockées en base : elle tombe avec la base | Aucune |
+| 2 | Authentification | **Vitale** | Sans elle, aucune transaction ne peut être initiée. Intégrée à l'API, avec des sessions stockées en base : elle tombe avec la base (dans le socle au 20/10, sessions en mémoire, perdues à chaque redémarrage) | Aucune |
 | 3 | WAF / point d'entrée | **Vitale** | Point de passage unique de tout le trafic | Un contournement temporaire n'est **pas** acceptable (exposition directe) |
 | 4 | Journalisation et SIEM | Importante | Aucun revenu en jeu, mais elle est indispensable à l'investigation et à la conformité | Arrêt de quelques heures, **sans perte** de journaux |
 | 5 | Consultation de l'historique | Importante | Gêne pour les partenaires, sans perte de revenu | Mode dégradé possible (lecture différée) |
@@ -74,7 +74,7 @@ La perte directe reste modeste. **Le vrai coût vient des effets de seuil** : la
 | Service | RTO proposé | RPO proposé |
 |---|---|---|
 | Traitement des transactions | ≤ 5 min | 0 (aucune transaction validée perdue) |
-| Authentification | ≤ 5 min | Sans objet (service sans état) |
+| Authentification | ≤ 5 min | Sans objet : une session perdue oblige seulement à se reconnecter |
 | Journalisation | ≤ 1 h | 0 |
 | Consultation | ≤ 30 min | 0 |
 | Assistant RAG | Meilleur effort | Sans objet |

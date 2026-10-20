@@ -10,7 +10,7 @@
 
 - L'entreprise est un **opérateur de paiement fictif**. Il traite les paiements de commerçants partenaires pour des utilisateurs finaux. Toutes les données sont fictives.
 - Le démonstrateur tourne sur **un seul PC Hôte**, avec Docker Compose sur le réseau `RESILIENCE-G6`. L'attaque vient d'un PC Attaquant distinct.
-- Le coût d'un arrêt est chiffré dans `services-critiques.md` (WOR-68). Les objectifs RTO/RPO seront arrêtés dans WOR-70.
+- Le coût d'un arrêt est chiffré dans `services-critiques.md` (WOR-68). Les objectifs RTO/RPO sont fixés dans `rto-rpo.md` (WOR-70).
 
 ---
 
@@ -33,7 +33,7 @@
 |---|---|---|
 | BS1 | Front web de paiement | VM1, VM2 |
 | BS2 | API métier de paiement (Node.js, `app/backend/`) | VM1, VM2, VM4 |
-| BS3 | Authentification : sessions stockées en base, intégrée à l'API (pas de service séparé au 20/10) | VM3 |
+| BS3 | Authentification intégrée à l'API (pas de service séparé), sessions en base ; dans le socle, elles sont en mémoire tant que l'API n'est pas branchée sur PostgreSQL | VM3 |
 | BS4 | Base PostgreSQL (utilisateurs, sessions, intentions de paiement) | VM1, VM4 |
 | BS5 | WAF / reverse proxy | VM1, VM2, VM3 |
 | BS6 | Stack d'observabilité (Prometheus, Loki, Grafana) et SIEM | VM5, VM6 |
@@ -46,7 +46,7 @@
 
 > **Point d'attention :** BS8 (le moteur de remédiation) a des droits élevés sur tous les conteneurs. C'est le bien support le plus sensible du dispositif (voir ER6).
 >
-> **Alignement sur le code (20/10) :** BS7 (inférence ML) et BS8 (remédiation) ne sont pas encore codés. BS5 (WAF) est déployé dans le socle, mais l'API n'est pas encore derrière lui. Les vulnérabilités relevées dans le code (port de la base publié, secrets en clair, code de vérification renvoyé par l'API, appel à OpenAI) sont listées dans `constat/etat-implementation.md` §3 et seront traitées dans les ateliers 3 à 5 (WOR-67).
+> **Alignement sur le code (20/10) :** BS7 (inférence ML) et BS8 (remédiation) ne sont pas encore codés. BS5 (WAF) est déployé et l'API est derrière lui. Dans le socle, l'API garde ses données en mémoire (BS4 n'y est pas utilisée). Les vulnérabilités relevées dans le code (port de la base publié, secrets en clair, code de vérification renvoyé par l'API, appel à OpenAI) sont listées dans `constat/etat-implementation.md` §3 et seront traitées dans les ateliers 3 à 5 (WOR-67).
 
 ### 1.3 Événements redoutés
 
@@ -69,7 +69,7 @@ Pour une indisponibilité, l'échelle est chiffrée dans `services-critiques.md`
 | Référentiel | Applicabilité | Écarts connus à ce stade |
 |---|---|---|
 | DORA (règlement UE 2022/2554) | Applicable : entité financière | Pas de tests de résilience menés par un tiers, pas de gestion des prestataires TIC (voir WOR-69) |
-| NIS2 (directive UE 2022/2555) | Le secteur bancaire et les infrastructures des marchés financiers sont couverts, mais DORA s'applique en priorité | Analyse à faire dans WOR-69 |
+| NIS2 (directive UE 2022/2555) | Non applicable : les établissements de paiement ne sont pas à l'annexe I. Pour les entités financières, DORA prime de toute façon | Voir `nis2-dora.md` (WOR-69) |
 | RGPD | Applicable par principe (données personnelles fictives) | Aucune donnée réelle, donc écart sans conséquence pour le prototype |
 | Guide d'hygiène informatique de l'ANSSI | Bonnes pratiques de référence | Hôte unique (point de défaillance unique), pas de sauvegarde hors site |
 | PCI DSS | Référence du secteur pour les données de carte | **Hors périmètre** : aucune donnée de carte manipulée |
