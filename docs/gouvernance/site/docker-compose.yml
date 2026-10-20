@@ -1,0 +1,21 @@
+# Site de documentation de la gouvernance — POC du pilier Gouvernance
+#   docker compose -f docs/gouvernance/site/docker-compose.yml up --build -d
+#   puis http://127.0.0.1:8095
+name: gouvernance-site
+
+services:
+  site:
+    build:
+      context: ..            # docs/gouvernance : le site est construit à partir des .md
+      dockerfile: site/Dockerfile
+    ports:
+      # Local uniquement : constat/ liste les failles de la plateforme, ne pas l'exposer
+      # sur le réseau RESILIENCE-G6
+      - "127.0.0.1:8095:8080"
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    restart: unless-stopped

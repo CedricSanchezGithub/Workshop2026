@@ -1,0 +1,15 @@
+/* Couleurs de la charte du projet (mêmes que les PDF) */
+:root {
+  --sl-color-accent-low: #E4E6F3;
+  --sl-color-accent: #4A4470;
+  --sl-color-accent-high: #261E48;
+}
+:root[data-theme='dark'] {
+  --sl-color-accent-low: #261E48;
+  --sl-color-accent: #A1A6D4;
+  --sl-color-accent-high: #E4E6F3;
+}
+
+/* Tableaux : pleine largeur, en-tête coloré */
+.sl-markdown-content table { display: table; width: 100%; }
+.sl-markdown-content th { background: var(--sl-color-accent-low); }
