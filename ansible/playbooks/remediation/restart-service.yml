@@ -1,0 +1,19 @@
+# Redémarre proprement un service de la liste fermée et attend qu'il soit sain (attaque A).
+#   ansible-playbook playbooks/remediation/restart-service.yml -e service=payment-api
+- name: Redémarrer un service
+  hosts: pc_hote
+  gather_facts: false
+  tasks:
+    - name: Refuser un service hors de la liste fermée
+      ansible.builtin.assert:
+        that: service in remediation_services
+        fail_msg: "Service non autorisé : {{ service }}"
+        quiet: true
+
+    - name: Redémarrer et attendre le healthcheck
+      community.docker.docker_compose_v2:
+        project_src: "{{ infra_dir }}"
+        services: ["{{ service }}"]
+        state: restarted
+        wait: true
+        wait_timeout: 90

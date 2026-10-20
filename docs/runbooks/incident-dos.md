@@ -16,9 +16,12 @@ statut: brouillon (pilier IA), à valider par les piliers Cyber, Infra et Gouver
 ## 2. Ce que fait la remédiation automatique
 
 1. Le moteur de remédiation reçoit l'alerte signée (HMAC) du détecteur et vérifie la signature.
-2. Il applique la réponse prévue pour `dos` : limitation de débit ou blocage temporaire des IP listées dans `offenders` au niveau du WAF, puis redémarrage propre du service de paiement si sa santé métier est dégradée.
-3. Il vérifie le retour à la normale : `/health` répond `ok`, **une transaction de test est acceptée**, la latence repasse sous son niveau habituel.
-4. Le détecteur envoie un événement `resolved` quand les scores d'anomalie redeviennent normaux.
+2. Il bloque au WAF les IP listées dans `offenders` (playbook `waf-block-ip`, effectif en ~4 s ; jamais les adresses de l'hôte ni la loopback).
+3. Il lance une transaction de test ; si elle échoue encore, il redémarre payment-api (playbook `restart-service`).
+4. Il vérifie le retour à la normale : **une transaction de test complète est acceptée** (connexion, intention de paiement, code de vérification, paiement `succeeded`). Après 2 tentatives infructueuses, l'incident passe en échec et une escalade est journalisée.
+5. Le détecteur envoie un événement `resolved` quand les scores d'anomalie redeviennent normaux.
+
+Toutes les étapes sont visibles en direct sur le dashboard de supervision (http://127.0.0.1:8090).
 
 Un conteneur redémarré ne suffit pas comme preuve de reprise : seule une transaction de test réussie valide le rétablissement.
 
@@ -33,7 +36,7 @@ L'opérateur **n'intervient pas** pour corriger pendant la reprise automatique. 
 
 ## 4. Après l'incident
 
-- Lever les blocages temporaires d'IP après la période prévue, sauf décision contraire.
+- Lever les blocages d'IP (`ansible-playbook playbooks/remediation/waf-unblock-all.yml`) une fois l'incident analysé, sauf décision contraire.
 - Comparer le temps de reprise mesuré à l'objectif RTO du PCA/PRA.
 - Ajouter l'incident au journal et, si besoin, ajuster les seuils de limitation de débit.
 

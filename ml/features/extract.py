@@ -101,8 +101,8 @@ FEATURES: list[Feature] = [
 ]
 
 IP_FEATURES = {"distinct_ips": "traffic", "top_ip_share": "traffic"}
-# client_ip 127.0.0.1 = healthcheck interne du conteneur, pas un client.
-IP_QUERY = f'sum by (client_ip) (count_over_time({API_HTTP} | client_ip != "127.0.0.1" [{WINDOW}]))'
+# client_ip 127.0.0.1 / ::1 = healthchecks internes (API, WAF), pas des clients.
+IP_QUERY = f'sum by (client_ip) (count_over_time({API_HTTP} | client_ip != "127.0.0.1" | client_ip != "::1" [{WINDOW}]))'
 
 
 def family_columns(family: str) -> list[str]:

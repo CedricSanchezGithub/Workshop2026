@@ -5,6 +5,7 @@
   gather_facts: false
   vars:
     grafana_bind: "{{ lookup('ansible.builtin.ini', 'GRAFANA_BIND', type='properties', file=infra_dir ~ '/.env', default='127.0.0.1') }}"
+    grafana_port: "{{ lookup('ansible.builtin.ini', 'GRAFANA_PORT', type='properties', file=infra_dir ~ '/.env', default='3000') }}"
   tasks:
     - name: Vault est initialisé, descellé et actif
       ansible.builtin.uri:
@@ -110,7 +111,7 @@
 
     - name: Grafana est sain (via son port publié)
       ansible.builtin.uri:
-        url: "http://{{ grafana_bind }}:3000/api/health"
+        url: "http://{{ grafana_bind }}:{{ grafana_port }}/api/health"
         return_content: true
       register: grafana_health
       until: grafana_health.status == 200 and grafana_health.json.database == 'ok'
@@ -127,7 +128,7 @@
 
     - name: Grafana accepte le mot de passe fourni par Vault
       ansible.builtin.uri:
-        url: "http://{{ grafana_bind }}:3000/api/org"
+        url: "http://{{ grafana_bind }}:{{ grafana_port }}/api/org"
         url_username: "{{ lookup('ansible.builtin.ini', 'GRAFANA_ADMIN_USER', type='properties', file=infra_dir ~ '/.env') }}"
         url_password: "{{ grafana_admin_password.stdout }}"
         force_basic_auth: true
@@ -145,12 +146,20 @@
       retries: 20
       delay: 3
 
+    - name: Vérifier la chaîne de reprise autonome (WAF, détection ML, moteur, transaction de test)
+      ansible.builtin.include_tasks:
+        file: tasks/verify-remediation.yml
+        apply:
+          tags: [remediation]
+      tags: [remediation]
+
     - name: Résumé
       ansible.builtin.debug:
         msg:
           - "Cibles Prometheus UP : {{ up_query.json.data.result | map(attribute='metric.job') | sort | join(', ') }}"
           - "Journaux dans Loki : {{ loki_streams.json.data | map(attribute='container') | unique | sort | join(', ') }}"
-          - "Grafana    : http://{{ grafana_bind }}:3000"
+          - "Grafana    : http://{{ grafana_bind }}:{{ grafana_port }}"
           - "Vault      : {{ vault_addr }}/ui (jeton root dans infra/secrets/vault-init.json)"
           - "Prometheus : http://127.0.0.1:9090"
           - "Loki       : http://127.0.0.1:3100"
+          - "Supervision (moteur de remédiation) : http://127.0.0.1:{{ remediation_port }}"

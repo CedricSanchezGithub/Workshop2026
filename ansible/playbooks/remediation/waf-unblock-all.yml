@@ -1,0 +1,30 @@
+# Vide la liste de blocage du WAF (fin d'incident, reset-known-good, tests).
+- name: Débloquer toutes les IP au WAF
+  hosts: pc_hote
+  gather_facts: false
+  tasks:
+    - name: Remettre la liste à son contenu initial
+      ansible.builtin.copy:
+        dest: "{{ remediation_blocklist }}"
+        content: "{{ remediation_blocklist_placeholder }}\n"
+        mode: "0644"
+      register: blocklist
+
+    # `nginx -s reload` rend la main avant que la nouvelle configuration soit active (le CRS met
+    # ~3 s à se recharger). On attend que tous les workers d'avant le reload aient été remplacés :
+    # à partir de là, chaque nouvelle requête est filtrée avec la liste à jour.
+    - name: Recharger nginx dans le WAF et attendre que la nouvelle liste soit active
+      ansible.builtin.command:
+        argv:
+          - docker
+          - compose
+          - exec
+          - -T
+          - waf
+          - sh
+          - -c
+          - >-
+            old=$(ps -o pid,args | awk '/nginx: worker process$/ {print $1}'); nginx -s reload || exit 1; i=0; while [ $i -lt 100 ]; do cur=$(ps -o pid,args | awk '/nginx: worker process$/ {print $1}'); stale=0; for p in $cur; do echo "$old" | grep -qx "$p" && stale=1; done; if [ -n "$cur" ] && [ $stale -eq 0 ]; then exit 0; fi; i=$((i+1)); sleep 0.2; done; echo "reload non appliqué après 20 s" >&2; exit 1
+        chdir: "{{ infra_dir }}"
+      when: blocklist is changed
+      changed_when: true

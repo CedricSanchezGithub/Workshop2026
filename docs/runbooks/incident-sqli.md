@@ -23,10 +23,12 @@ Une injection vise la **confidentialité et l'intégrité** des données, pas se
 ## 3. Ce que fait la remédiation automatique
 
 1. Vérification de la signature HMAC de l'alerte.
-2. Blocage au WAF des IP listées dans `offenders`.
-3. Contrôle d'intégrité de la base : soldes cohérents (la somme des soldes est constante), pas de transaction inattendue.
-4. Si une incohérence est détectée : restauration de la base depuis la dernière sauvegarde saine (playbook Ansible), puis rotation des secrets applicatifs (Vault/SOPS).
-5. Vérification finale : `/health` répond `ok` et **une transaction de test est acceptée**.
+2. Blocage au WAF des IP listées dans `offenders` (playbook `waf-block-ip`).
+3. Constat de l'état de l'API avant restauration (journalisé).
+4. Restauration systématique de payment-api depuis son image (playbook `restore-service`) : l'API du démonstrateur est en mémoire, la recréer la remet dans son état sain connu, sans aucune donnée altérée.
+5. Vérification finale : **une transaction de test complète est acceptée** après la restauration.
+
+Limites du démonstrateur : pas encore de base persistante à restaurer depuis une sauvegarde, ni de rotation automatique des secrets applicatifs. La rotation est possible manuellement (`scripts/reset-known-good.sh --rotate-secrets`).
 
 ## 4. Rôle de l'opérateur
 

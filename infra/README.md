@@ -9,7 +9,9 @@ Responsable Infrastructure : Reza. Déploiement reproductible (WOR-49).
 | `loki/`, `alloy/` | Centralisation des logs : Loki + agent Alloy (via socket-proxy) | WOR-46 | en place : journaux de tous les conteneurs du projet |
 | `grafana/provisioning/` | Datasources + dashboards provisionnés (IaC) | WOR-47 | datasources + dashboard SOC/SIEM (WOR-61) ; dashboards métier à faire |
 | `vault/` | Gestion des secrets : HashiCorp Vault + Vault Agent | WOR-62 | en place (Postgres, Grafana) |
-| `waf/` | Filtrage applicatif (ModSecurity + OWASP CRS) devant front + API | WOR-60 | en place : bloque les injections (403), audit JSON → Loki |
+| `waf/` | Filtrage applicatif (ModSecurity + OWASP CRS) devant front + API | WOR-60 | en place : bloque les injections (403), audit JSON → Loki ; blocage d'IP par la remédiation (WOR-38) |
+| `ml-inference` | Détection d'anomalies ML → alertes signées vers le moteur de remédiation | WOR-53 | service en place ; modèle à réentraîner sur la plateforme |
+| `legit-traffic` (profil `demo`) | Voyageurs fictifs (4 IP) qui se connectent et paient à travers le WAF | WOR-50 | en place |
 
 > Elastic Stack non retenu (charge mémoire du PC Hôte) — cf sujet §3.2.
 
@@ -33,8 +35,10 @@ Vault doit être initialisé et descellé avant le reste de la stack : passer pa
 
 | Service | URL | Exposition |
 |---|---|---|
-| WAF (entrée appli) | `http://<WAF_BIND>:8080` | `127.0.0.1` par défaut, `192.168.137.1` le jour de la démo |
-| Grafana | `http://<GRAFANA_BIND>:3000` | `127.0.0.1` par défaut, `192.168.137.1` le jour de la démo |
+| WAF (entrée appli) | `http://<WAF_BIND>:<WAF_PORT>` (8080) | `127.0.0.1` par défaut, `192.168.137.1` le jour de la démo |
+| Grafana | `http://<GRAFANA_BIND>:<GRAFANA_PORT>` (3000) | `127.0.0.1` par défaut, `192.168.137.1` le jour de la démo |
+| Supervision (moteur de remédiation, hôte) | `http://127.0.0.1:8090` | PC Hôte (+ passerelle Docker pour les alertes) |
+| Détection ML | `http://127.0.0.1:8095/status` | PC Hôte uniquement |
 | Prometheus | `http://127.0.0.1:9090` | PC Hôte uniquement |
 | Loki | `http://127.0.0.1:3100` | PC Hôte uniquement |
 | PostgreSQL | — | Jamais publié (réseau `backend` interne) |
@@ -58,8 +62,8 @@ Console SQL : `docker compose exec postgres sh -c 'psql -U "$POSTGRES_USER" -d "
 | Réseau | Services | Particularité |
 |---|---|---|
 | `backend` | postgres, payment-api, waf (+ futurs services métier) | `internal: true` : aucun accès sortant, aucun port publiable |
-| `edge` | waf | Périmètre exposé : seul le WAF y publie un port (entrée de l'application) |
-| `monitoring` | prometheus, loki, grafana, payment-api | Seul Grafana est publié ; payment-api y expose `/metrics` |
+| `edge` | waf, legit-traffic | Périmètre exposé : seul le WAF y publie un port (entrée de l'application) |
+| `monitoring` | prometheus, loki, grafana, payment-api, ml-inference | Grafana publié ; ml-inference publié sur 127.0.0.1 ; payment-api y expose `/metrics` |
 | `secrets` | vault, vault-agent | Vault publié sur 127.0.0.1 uniquement |
 | `docker-api` | socket-proxy, alloy | `internal: true` : seul Alloy peut interroger le proxy du socket Docker |
 
@@ -125,3 +129,27 @@ Ansible ──(API, jeton root)──▶ Vault ◀──(AppRole, lecture seule)
 - jeton root conservé pour l'administration ; en production : révoqué après l'installation ;
 - TLS désactivé (Vault n'écoute que sur le réseau Docker `secrets` et 127.0.0.1) ;
 - changer un mot de passe dans Vault ne le change pas dans Postgres/Grafana (lu à l'initialisation seulement).
+
+## Reprise autonome — WAF, détection, remédiation (WOR-38/53/60)
+
+```
+legit-traffic ─┐                                      ┌─▶ Prometheus ─┐
+PC Attaquant ──┴─▶ WAF (blocklist) ─▶ payment-api ────┤               ├─▶ ml-inference ──HMAC──▶ moteur (hôte)
+                     ▲                                └─▶ Loki ───────┘                            │
+                     └──────────── ansible playbooks/remediation/ (bloquer, redémarrer, restaurer) ◀┘
+```
+
+- **Blocage d'IP** : règle `waf/modsecurity/remediation-before.conf` (montée comme plugin CRS, évaluée avant les
+  règles CRS) qui refuse en 403 les IP de `waf/remediation/blocked-ips.txt`. La liste (hors Git) est écrite uniquement
+  par `playbooks/remediation/waf-block-ip.yml`, puis nginx est rechargé. `waf/templates/nginx.conf.template` ajoute
+  `worker_shutdown_timeout 3s` (les anciens workers ne servent plus l'attaquant après le rechargement) ;
+  `NGINX_WORKER_PROCESSES=2` (rechargement plus rapide, mémoire maîtrisée).
+- **Détection** : `ml-inference` (réseau `monitoring`, lecture seule) lit Prometheus/Loki toutes les 10 s et envoie
+  des alertes signées au moteur via `host.docker.internal`. Clé HMAC montée en fichier (`*_FILE`), jamais dans l'environnement.
+- **Moteur de remédiation** : processus de l'hôte (`scripts/start-remediation.sh`, lancé par `deploy.yml`) ; détail
+  dans `services/remediation/README.md`.
+- **Trafic légitime** : `docker compose --profile demo up -d legit-traffic` — 4 répliques sur `edge`, donc 4 IP
+  sources distinctes vues par le WAF (sans faire confiance à `X-Forwarded-For`). À lancer pendant l'entraînement
+  et pendant la démo : une plateforme sans aucun client est elle-même anormale pour le modèle.
+- **Ports** : `WAF_PORT` / `GRAFANA_PORT` dans `.env` si 8080 / 3000 sont déjà pris sur la machine.
+

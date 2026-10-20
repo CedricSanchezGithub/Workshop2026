@@ -21,3 +21,6 @@ cd ml && uv sync && uv run pytest
 ```
 
 Contrat avec la plateforme (noms de métriques, champs de journaux, labels Loki) : [`docs/architecture/contrat-observabilite-ia.md`](../docs/architecture/contrat-observabilite-ia.md).
+Contrat avec la remédiation (alertes signées) : [`docs/architecture/contrat-alerte-remediation.md`](../docs/architecture/contrat-alerte-remediation.md).
+
+Détail : [`training/README.md`](training/README.md) (modèle Isolation Forest + enveloppe, évaluation) et [`inference/README.md`](inference/README.md) (service, alertes).

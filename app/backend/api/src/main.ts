@@ -84,6 +84,9 @@ function isDatabaseError(error: unknown): boolean {
 }
 
 app.disable('x-powered-by');
+// Derrière le WAF : req.ip = client réel (X-Forwarded-For posé par le WAF), sinon tous les clients
+// partagent la même IP et le même quota de rate-limit (60 req/min pour toute la plateforme).
+app.set('trust proxy', 1);
 app.use(helmet());
 app.use(cors({ origin: (origin, callback) => {
   if (!origin || webOrigins.has(origin)) return callback(null, true);

@@ -1,0 +1,64 @@
+# Vérifications de la chaîne de reprise autonome (WOR-38/53/77), incluses par verify.yml :
+# WAF → payment-api → détection ML → moteur de remédiation → transaction de test.
+
+- name: La règle de blocage de la remédiation est chargée dans le WAF
+  ansible.builtin.command:
+    argv: [docker, compose, exec, -T, waf, test, -s, /etc/modsecurity.d/owasp-crs/plugins/remediation-before.conf]
+    chdir: "{{ infra_dir }}"
+  changed_when: false
+  tags: [remediation]
+
+- name: La liste de blocage du WAF existe et contient l'adresse de documentation
+  ansible.builtin.command:
+    argv: [grep, -qx, "{{ remediation_blocklist_placeholder }}", "{{ remediation_blocklist }}"]
+  changed_when: false
+  tags: [remediation]
+
+- name: La clé HMAC des alertes existe
+  ansible.builtin.stat:
+    path: "{{ remediation_hmac_key }}"
+  register: hmac_key
+  failed_when: not hmac_key.stat.exists or hmac_key.stat.size < 32
+  tags: [remediation]
+
+- name: Le service de détection ML répond et a chargé son modèle
+  ansible.builtin.uri:
+    url: http://127.0.0.1:8095/status
+    return_content: true
+  register: inference_status
+  until: inference_status.status == 200 and inference_status.json.families | length == 2
+  retries: 20
+  delay: 3
+  tags: [remediation, inference]
+
+- name: Le moteur de remédiation répond (scripts/start-remediation.sh)
+  ansible.builtin.uri:
+    url: "http://127.0.0.1:{{ remediation_port }}/health"
+    return_content: true
+  register: engine_health
+  until: engine_health.status == 200 and engine_health.json.hmac_key
+  retries: 10
+  delay: 2
+  tags: [remediation]
+
+# Preuve métier : une transaction complète (connexion, intention de paiement, code, paiement accepté)
+# passe à travers le WAF. C'est le critère de « service rétabli » utilisé par le moteur.
+- name: Une transaction de test réussit de bout en bout
+  ansible.builtin.uri:
+    url: "http://127.0.0.1:{{ remediation_port }}/api/probe"
+    method: POST
+    return_content: true
+  register: probe
+  until: probe.status == 200 and probe.json.ok
+  retries: 10
+  delay: 3
+  tags: [remediation]
+
+- name: Le moteur de remédiation ne publie rien sur le réseau du hotspot
+  ansible.builtin.command:
+    argv: [ss, -Htln, "sport = :{{ remediation_port }}"]
+  register: engine_listen
+  changed_when: false
+  # Adresse locale suivie du port (la colonne pair, « 0.0.0.0:* », ne doit pas être prise en compte)
+  failed_when: engine_listen.stdout is search('\\s(0\\.0\\.0\\.0|\\*|\\[::\\]|192\\.168\\.137\\.[0-9]+):' ~ remediation_port ~ '\\s')
+  tags: [remediation]

@@ -241,7 +241,7 @@ services:
       - grafana-data:/var/lib/grafana
       - secrets-grafana:/run/secrets/grafana:ro
     ports:
-      - "${GRAFANA_BIND:-127.0.0.1}:3000:3000"
+      - "${GRAFANA_BIND:-127.0.0.1}:${GRAFANA_PORT:-3000}:3000"
     networks:
       - monitoring
     cap_drop: [ALL]
@@ -347,11 +347,23 @@ services:
       BACKEND: "http://payment-api:8080"
       PORT: "8080"
       SERVER_NAME: "resilience-alpha"
+      # Accès nginx sur stdout -> Loki : débit vu par le WAF et URL des requêtes (features ML waf_req_rate,
+      # suspicious_char_ratio ; contrat docs/architecture/contrat-observabilite-ia.md §3)
+      ACCESSLOG: "/dev/stdout"
+      # 2 workers suffisent pour la démo ; « auto » en lance un par cœur (24 sur le PC de dev), ce qui
+      # ralentit chaque rechargement de la liste de blocage et pèse sur la limite mémoire.
+      NGINX_WORKER_PROCESSES: "2"
     volumes:
       # Surcharge de l'include proxy : résolution différée du backend (le WAF démarre sans l'API)
       - ./waf/templates/includes/proxy_backend.conf.template:/etc/nginx/templates/includes/proxy_backend.conf.template:ro
+      - ./waf/templates/nginx.conf.template:/etc/nginx/templates/nginx.conf.template:ro
+      # Remédiation (WOR-38) : règle fixe chargée avant le CRS + liste d'IP bloquées écrite par Ansible.
+      # Le dossier (et non le fichier) est monté : le WAF voit la liste à jour après un `nginx -s reload`.
+      # Monté comme « plugin » CRS : seul emplacement inclus avant les règles CRS par cette image.
+      - ./waf/modsecurity/remediation-before.conf:/etc/modsecurity.d/owasp-crs/plugins/remediation-before.conf:ro
+      - ./waf/remediation:/etc/modsecurity.d/remediation:ro
     ports:
-      - "${WAF_BIND:-127.0.0.1}:8080:8080"
+      - "${WAF_BIND:-127.0.0.1}:${WAF_PORT:-8080}:8080"
     networks:
       - edge      # port publié (attaquant -> WAF)
       - backend   # WAF -> payment-api (réseau métier interne)
@@ -369,6 +381,78 @@ services:
         limits:
           cpus: "0.5"
           memory: 256M
+
+  # Détection d'anomalies ML (WOR-53) : lit Prometheus/Loki toutes les 10 s, score avec une
+  # Isolation Forest par famille et envoie des alertes signées HMAC au moteur de remédiation, qui
+  # tourne sur l'hôte (host.docker.internal). Lecture seule sur l'observabilité, aucun autre accès.
+  ml-inference:
+    <<: *hardening
+    build:
+      context: ../ml
+      dockerfile: inference/Dockerfile
+    image: resilience-alpha/ml-inference:dev
+    environment:
+      PROMETHEUS_URL: "http://prometheus:9090"
+      LOKI_URL: "http://loki:3100"
+      REMEDIATION_URL: "http://host.docker.internal:${REMEDIATION_PORT:-8090}"
+      REMEDIATION_HMAC_KEY_FILE: "/run/secrets/remediation/hmac_key"
+    extra_hosts: ["host.docker.internal:host-gateway"]
+    volumes:
+      - type: bind
+        source: ./secrets/remediation/hmac_key
+        target: /run/secrets/remediation/hmac_key
+        read_only: true
+        bind:
+          create_host_path: false
+    ports:
+      - "127.0.0.1:8095:8095"   # /status et /metrics pour le moteur et le dashboard (local uniquement)
+    networks:
+      - monitoring
+    read_only: true
+    cap_drop: [ALL]
+    depends_on:
+      prometheus:
+        condition: service_healthy
+      loki:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8095/health', timeout=2)"]
+      interval: 10s
+      timeout: 3s
+      retries: 6
+      start_period: 20s
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 512M
+
+  # Trafic légitime simulé (WOR-50/91) : voyageurs fictifs qui se connectent et paient à travers le
+  # WAF. Sert à l'entraînement du détecteur ET pendant la démo (une plateforme sans aucun client est
+  # elle-même anormale pour le modèle). Une réplique = une IP source distincte sur le réseau edge.
+  #   docker compose --profile demo up -d legit-traffic
+  legit-traffic:
+    <<: *hardening
+    profiles: ["demo"]
+    build:
+      context: ../ml/lab/traffic
+    image: resilience-alpha/legit-traffic:dev
+    environment:
+      TARGET: "http://waf:8080"
+      USERS: "3"
+    networks:
+      - edge
+    read_only: true
+    cap_drop: [ALL]
+    depends_on:
+      waf:
+        condition: service_healthy
+    deploy:
+      replicas: 4
+      resources:
+        limits:
+          cpus: "0.2"
+          memory: 96M
 
 networks:
   # Données métier : aucun accès sortant, aucun port publiable

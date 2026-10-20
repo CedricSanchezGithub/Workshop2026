@@ -39,7 +39,7 @@ Une ligne **JSON** par requête sur la sortie standard du conteneur :
 | `client_ip` | oui | IP du **client réel**, lue dans l'en-tête `X-Real-IP` posé par le WAF (l'API n'est joignable que par le WAF) |
 | `ts`, `method`, `route`, `path`, `status`, `latency_ms`, `resp_bytes`, `query_len`, `body_len`, `ua` | recommandé | contexte d'investigation, utile au SOC et au RAG |
 
-Le healthcheck interne du conteneur (`client_ip` = `127.0.0.1`) est ignoré par le détecteur.
+Les healthchecks internes (`client_ip` = `127.0.0.1` ou `::1`) sont ignorés par le détecteur.
 
 ## 3. WAF (`waf`)
 
