@@ -32,6 +32,7 @@ loki_logged_services:
   - vault-agent
   - socket-proxy
   - alloy
+  - waf
 
 # Fichiers de configuration montés dans chaque service (chemins relatifs à infra/) :
 # deploy.yml redémarre le service si l'un d'eux est plus récent que son conteneur.
@@ -42,3 +43,4 @@ config_watch:
   alloy: [alloy]
   vault: [vault/vault.hcl]
   vault-agent: [vault/agent.hcl]
+  waf: [waf/templates]

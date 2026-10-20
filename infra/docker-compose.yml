@@ -260,11 +260,57 @@ services:
           cpus: "0.5"
           memory: 384M
 
+  # WAF applicatif (WOR-60) : ModSecurity + OWASP CRS en reverse-proxy devant l'API/le front.
+  # Point d'entrée publié unique de l'application ; bloque les injections (règles CRS 942xxx)
+  # AVANT d'atteindre le backend, et journalise chaque blocage en JSON sur stdout —
+  # collecté par Alloy -> Loki (SIEM, WOR-61 ; signaux figés dans docs/attack-scenarios.md).
+  waf:
+    <<: *hardening
+    image: owasp/modsecurity-crs:4.30.0-nginx-alpine-202610180210
+    environment:
+      # Moteur de règles actif (blocage réel, pas seulement détection)
+      MODSEC_RULE_ENGINE: "On"
+      PARANOIA: "1"
+      ANOMALY_INBOUND: "5"
+      ANOMALY_OUTBOUND: "4"
+      # Journal d'audit JSON sur stdout (flux unique), uniquement les requêtes pertinentes
+      MODSEC_AUDIT_ENGINE: "RelevantOnly"
+      MODSEC_AUDIT_LOG_TYPE: "Serial"
+      MODSEC_AUDIT_LOG: "/dev/stdout"
+      MODSEC_AUDIT_LOG_FORMAT: "JSON"
+      # Backend applicatif : payment-api (à venir). Tant qu'il n'existe pas, le WAF répond 502
+      # sur le trafic légitime mais bloque déjà les injections (403) — cf scénario B (WOR-59).
+      BACKEND: "http://payment-api:8080"
+      PORT: "8080"
+      SERVER_NAME: "resilience-alpha"
+    volumes:
+      # Surcharge de l'include proxy : résolution différée du backend (le WAF démarre sans l'API)
+      - ./waf/templates/includes/proxy_backend.conf.template:/etc/nginx/templates/includes/proxy_backend.conf.template:ro
+    ports:
+      - "${WAF_BIND:-127.0.0.1}:8080:8080"
+    networks:
+      - edge      # port publié (attaquant -> WAF)
+      - backend   # WAF -> payment-api (réseau métier interne)
+    # 502 tant que le backend est absent ; curl sans -f sort 0 dès que nginx répond => WAF up
+    healthcheck:
+      test: ["CMD", "curl", "-sS", "-o", "/dev/null", "http://localhost:8080/"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+      start_period: 15s
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 256M
+
 networks:
   # Données métier : aucun accès sortant, aucun port publiable
   backend:
     internal: true
   monitoring: {}
+  # Périmètre exposé : seul le WAF y publie un port (point d'entrée de l'application)
+  edge: {}
   # Vault + agent ; non interne uniquement pour publier l'UI/API sur 127.0.0.1
   secrets: {}
   # socket-proxy <-> alloy uniquement

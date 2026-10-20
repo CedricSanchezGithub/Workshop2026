@@ -9,7 +9,7 @@ Responsable Infrastructure : Reza. Déploiement reproductible (WOR-49).
 | `loki/`, `alloy/` | Centralisation des logs : Loki + agent Alloy (via socket-proxy) | WOR-46 | en place : journaux de tous les conteneurs du projet |
 | `grafana/provisioning/` | Datasources + dashboards provisionnés (IaC) | WOR-47 | datasources provisionnées ; dashboards à faire |
 | `vault/` | Gestion des secrets : HashiCorp Vault + Vault Agent | WOR-62 | en place (Postgres, Grafana) |
-| `waf/` | Filtrage applicatif devant front + API | WOR-60 | à faire |
+| `waf/` | Filtrage applicatif (ModSecurity + OWASP CRS) devant front + API | WOR-60 | en place : bloque les injections (403), audit JSON → Loki |
 
 > Elastic Stack non retenu (charge mémoire du PC Hôte) — cf sujet §3.2.
 
@@ -33,6 +33,7 @@ Vault doit être initialisé et descellé avant le reste de la stack : passer pa
 
 | Service | URL | Exposition |
 |---|---|---|
+| WAF (entrée appli) | `http://<WAF_BIND>:8080` | `127.0.0.1` par défaut, `192.168.137.1` le jour de la démo |
 | Grafana | `http://<GRAFANA_BIND>:3000` | `127.0.0.1` par défaut, `192.168.137.1` le jour de la démo |
 | Prometheus | `http://127.0.0.1:9090` | PC Hôte uniquement |
 | Loki | `http://127.0.0.1:3100` | PC Hôte uniquement |
@@ -56,7 +57,8 @@ Console SQL : `docker compose exec postgres sh -c 'psql -U "$POSTGRES_USER" -d "
 
 | Réseau | Services | Particularité |
 |---|---|---|
-| `backend` | postgres (+ futurs services métier) | `internal: true` : aucun accès sortant, aucun port publiable |
+| `backend` | postgres, waf (+ futurs services métier) | `internal: true` : aucun accès sortant, aucun port publiable |
+| `edge` | waf | Périmètre exposé : seul le WAF y publie un port (entrée de l'application) |
 | `monitoring` | prometheus, loki, grafana | Seul Grafana est publié |
 | `secrets` | vault, vault-agent | Vault publié sur 127.0.0.1 uniquement |
 | `docker-api` | socket-proxy, alloy | `internal: true` : seul Alloy peut interroger le proxy du socket Docker |
