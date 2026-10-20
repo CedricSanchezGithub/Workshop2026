@@ -2,7 +2,7 @@
 
 > **Statut : constat.** Ce document décrit ce qui a été vérifié dans le code, avec ses sources. Les objectifs et les plans sont dans `cible/`.
 
-> Responsable : Cédric · Version 0.3 du 20/10/2026 · Relevé sur `main` après la fusion des PR #14 à #21, #24 et #26 (moteur de remédiation, détection ML, tableau de bord)
+> Responsable : Cédric · Version 0.3 du 20/10/2026 · Relevé sur `main` après la fusion des PR #14 à #21, #24, #26 (moteur de remédiation, détection ML, tableau de bord) et #29 (Pay&Go déplacé dans `services/payment-api/`)
 >
 > Les documents de gouvernance ont été écrits avant le code. Ce registre dit, pour chaque hypothèse importante, si le code la **confirme**, la **contredit** ou ne l'a **pas encore implémentée**. Il est à mettre à jour après chaque fusion importante et avant les essais (WOR-73).
 
@@ -10,9 +10,9 @@
 
 | Composant | État | Où |
 |---|---|---|
-| API de paiement (Node.js) : sessions, idempotence des paiements, métriques Prometheus, journaux JSON, limitation à 60 requêtes par minute et par client | Implémentée. **Dans le socle, elle garde tout en mémoire** (voir §2) | `app/backend/`, `infra/docker-compose.yml` |
-| Front web et page d'administration | Implémentés | `app/front/` |
-| Base PostgreSQL de l'application | Implémentée, **sans sauvegarde**, utilisée seulement par le déploiement `app/` | `app/infra/docker-compose.yml` |
+| API de paiement (Node.js) : sessions, idempotence des paiements, métriques Prometheus, journaux JSON, limitation à 60 requêtes par minute et par client | Implémentée. **Dans le socle, elle garde tout en mémoire** (voir §2) | `services/payment-api/backend/`, `infra/docker-compose.yml` |
+| Front web et page d'administration | Implémentés | `services/payment-api/front/` |
+| Base PostgreSQL de l'application | Implémentée, **sans sauvegarde**, utilisée seulement par le déploiement autonome de Pay&Go | `services/payment-api/infra/docker-compose.yml` |
 | Socle : Vault, PostgreSQL, Prometheus (collecte toutes les 5 s), Loki (rétention 7 jours), Grafana | Implémenté ; l'API y est collectée | `infra/docker-compose.yml` |
 | WAF ModSecurity + OWASP CRS, en mode bloquant, seul point d'entrée publié | Implémenté, l'API est derrière lui. Injections bloquées en 403. Liste d'IP bloquées rechargée à chaud (`nginx -s reload`, 20 s maximum) ; les autres règles demandent un redémarrage | `infra/waf/` |
 | Détection ML : Isolation Forest par famille (`traffic` → déni de service, `injection` → injection), fenêtre de 60 s au pas de 10 s, alerte après 2 fenêtres anormales | Implémentée, en conteneur. **Modèle entraîné sur du trafic normal seulement** : aucun taux ni délai de détection mesuré | `ml/inference/`, `ml/training/report.md` |
@@ -31,7 +31,7 @@ La chaîne attaque → détection → remédiation → vérification existe main
 
 ## 2. Hypothèses de la gouvernance confrontées au code
 
-**Point principal : dans le socle, l'API garde ses données en mémoire.** Elle n'utilise PostgreSQL que si `STORAGE_DRIVER=postgres` (`app/backend/api/src/main.ts`), variable absente pour `payment-api` dans `infra/docker-compose.yml`. Le playbook de restauration le dit lui-même : « payment-api est en mémoire : le recréer le remet dans l'état du seed » (`restore-service.yml:2`). Conséquences :
+**Point principal : dans le socle, l'API garde ses données en mémoire.** Elle n'utilise PostgreSQL que si `STORAGE_DRIVER=postgres` (`services/payment-api/backend/api/src/main.ts`), variable absente pour `payment-api` dans `infra/docker-compose.yml`. Le playbook de restauration le dit lui-même : « payment-api est en mémoire : le recréer le remet dans l'état du seed » (`restore-service.yml:2`). Conséquences :
 
 - un redémarrage (attaque A) ou une restauration (attaque B) efface **toutes** les transactions, légitimes comprises ;
 - le RPO = 0 est impossible, même sans attaque ;
@@ -54,7 +54,7 @@ La chaîne attaque → détection → remédiation → vérification existe main
 | Durée de reprise affichée = RTO | `cible/rto-rpo.md` §1 | **À corriger à la mesure** | Le moteur compte depuis la réception de l'alerte (T3 → T6), pas depuis le début de l'impact (T1) |
 | Assistant RAG sans accès privilégié | `cible/pca-pra.md` §5 | **Confirmé** | Conteneur en lecture seule, sans droits ni accès au moteur Docker |
 | Hôte unique, aucune sauvegarde hors de l'hôte | `cible/nis2-dora.md`, `cible/pca-pra.md` S7 | **Confirmé** | Inventaire Ansible local uniquement |
-| Secrets dans HashiCorp Vault | `cible/ebios-rm.md` BS9 | **Partiellement contredit** | Vrai pour le socle et la clé HMAC (fichier hors Git). L'application `app/` garde son mot de passe de base en clair et sa clé OpenAI en variable d'environnement |
+| Secrets dans HashiCorp Vault | `cible/ebios-rm.md` BS9 | **Partiellement contredit** | Vrai pour le socle et la clé HMAC (fichier hors Git). Le déploiement autonome de Pay&Go garde son mot de passe de base en clair et sa clé OpenAI en variable d'environnement |
 
 ## 3. Nouveaux constats à intégrer à l'analyse de risques (WOR-67)
 
