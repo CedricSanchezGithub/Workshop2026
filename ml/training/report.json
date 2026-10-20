@@ -1,0 +1,64 @@
+{
+  "data": {
+    "files": [
+      "normal_01.parquet"
+    ],
+    "windows": 265,
+    "counts": {
+      "normal": 265
+    },
+    "train": 186,
+    "valid_normal": 79
+  },
+  "families": {
+    "traffic": {
+      "type": "dos",
+      "features": [
+        "req_rate",
+        "p95_latency_s",
+        "p99_latency_s",
+        "err5xx_ratio",
+        "r429_ratio",
+        "bytes_out_rate",
+        "payments_ok_rate",
+        "waf_req_rate",
+        "distinct_ips",
+        "top_ip_share"
+      ],
+      "trained_on_windows": 186,
+      "if_threshold": -0.1066,
+      "false_positive_rate_window": 0.0,
+      "false_alerts_on_normal": 0,
+      "window_recall_own_type": null,
+      "window_recall_if_only": null,
+      "window_recall_envelope_only": null,
+      "fires_on_other_type": null,
+      "incidents": 0,
+      "detected": 0,
+      "detection_delay_s": []
+    },
+    "injection": {
+      "type": "sqli",
+      "features": [
+        "waf_block_rate",
+        "crs_sqli_hits",
+        "crs_anomaly_score",
+        "suspicious_char_ratio",
+        "mean_req_bytes",
+        "client_err_ratio",
+        "db_error_rate"
+      ],
+      "trained_on_windows": 186,
+      "if_threshold": -0.2046,
+      "false_positive_rate_window": 0.0127,
+      "false_alerts_on_normal": 0,
+      "window_recall_own_type": null,
+      "window_recall_if_only": null,
+      "window_recall_envelope_only": null,
+      "fires_on_other_type": null,
+      "incidents": 0,
+      "detected": 0,
+      "detection_delay_s": []
+    }
+  }
+}

@@ -382,6 +382,51 @@ services:
           cpus: "0.5"
           memory: 256M
 
+  # Détection d'anomalies ML (WOR-53) : lit Prometheus/Loki toutes les 10 s, score avec une
+  # Isolation Forest par famille et envoie des alertes signées HMAC au moteur de remédiation, qui
+  # tourne sur l'hôte (host.docker.internal). Lecture seule sur l'observabilité, aucun autre accès.
+  ml-inference:
+    <<: *hardening
+    build:
+      context: ../ml
+      dockerfile: inference/Dockerfile
+    image: resilience-alpha/ml-inference:dev
+    environment:
+      PROMETHEUS_URL: "http://prometheus:9090"
+      LOKI_URL: "http://loki:3100"
+      REMEDIATION_URL: "http://host.docker.internal:${REMEDIATION_PORT:-8090}"
+      REMEDIATION_HMAC_KEY_FILE: "/run/secrets/remediation/hmac_key"
+    extra_hosts: ["host.docker.internal:host-gateway"]
+    volumes:
+      - type: bind
+        source: ./secrets/remediation/hmac_key
+        target: /run/secrets/remediation/hmac_key
+        read_only: true
+        bind:
+          create_host_path: false
+    ports:
+      - "127.0.0.1:8095:8095"   # /status et /metrics pour le moteur et le dashboard (local uniquement)
+    networks:
+      - monitoring
+    read_only: true
+    cap_drop: [ALL]
+    depends_on:
+      prometheus:
+        condition: service_healthy
+      loki:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8095/health', timeout=2)"]
+      interval: 10s
+      timeout: 3s
+      retries: 6
+      start_period: 20s
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 512M
+
   # Trafic légitime simulé (WOR-50/91) : voyageurs fictifs qui se connectent et paient à travers le
   # WAF. Sert à l'entraînement du détecteur ET pendant la démo (une plateforme sans aucun client est
   # elle-même anormale pour le modèle). Une réplique = une IP source distincte sur le réseau edge.
