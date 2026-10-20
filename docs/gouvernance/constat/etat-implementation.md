@@ -10,16 +10,16 @@
 
 | Composant | État | Où |
 |---|---|---|
-| API de paiement (Node.js) avec authentification par session, idempotence des paiements, métriques Prometheus, journaux JSON | Implémentée. **Dans le socle, elle garde tout en mémoire** (voir §2) | `app/backend/` |
-| Front web et page d'administration | Implémentés | `app/front/` |
-| Base PostgreSQL de l'application | Implémentée, **sans sauvegarde**, utilisée seulement par le déploiement `app/` | `app/infra/docker-compose.yml`, `app/infra/database/init/001_schema.sql` |
+| API de paiement (Node.js) avec authentification par session, idempotence des paiements, métriques Prometheus, journaux JSON | Implémentée. **Dans le socle, elle garde tout en mémoire** (voir §2) | `services/payment-api/backend/` |
+| Front web et page d'administration | Implémentés | `services/payment-api/front/` |
+| Base PostgreSQL de l'application | Implémentée, **sans sauvegarde**, utilisée seulement par le déploiement `services/payment-api/` | `services/payment-api/infra/docker-compose.yml`, `services/payment-api/infra/database/init/001_schema.sql` |
 | Socle : Vault, PostgreSQL, Prometheus (collecte toutes les 5 s), Loki (rétention 7 jours), Grafana | Implémenté. L'API y est collectée (métriques et journaux) | `infra/docker-compose.yml` |
 | Extraction des features de détection (fenêtre de 60 s, pas de 10 s) | Implémentée | `ml/features/extract.py` |
 | Modèle de détection, envoi des alertes | **Absent** | `ml/training/`, `ml/inference/` vides |
 | Moteur de remédiation | **Absent** | `services/remediation/README.md` : « À implémenter » |
 | WAF ModSecurity + OWASP CRS, en mode bloquant, seul point d'entrée publié du socle | Implémenté, l'API est derrière lui. Les injections sont bloquées en 403. **Pas de rechargement à chaud** : une règle change par fichier, puis le WAF redémarre (`config_watch`). Pas de limitation de débit au niveau du WAF | `infra/docker-compose.yml`, `infra/waf/README.md` |
 | Tableau de bord SOC / SIEM dans Grafana : blocages du WAF, accès à Vault, flux corrélé WAF · Vault · PostgreSQL | Implémenté ; **aucune règle d'alerte** | `infra/grafana/provisioning/dashboards/soc-siem.json` |
-| Tableau de bord d'incident (WOR-40) | **Absent** ; la page d'administration affiche des statuts fixes | `services/dashboard/`, `app/backend/api/src/main.ts` |
+| Tableau de bord d'incident (WOR-40) | **Absent** ; la page d'administration affiche des statuts fixes | `services/dashboard/`, `services/payment-api/backend/api/src/main.ts` |
 | Remise à l'état sain | Implémentée ; **efface base, journaux, métriques et Vault** | `scripts/reset-known-good.sh` |
 | Export des journaux de Loki vers un dossier de preuves, avec empreintes SHA-256 | Implémenté, **à lancer à la main** avant la remise à l'état sain (qui ne l'appelle pas) | `scripts/export-logs.sh` |
 | Durcissement des conteneurs (non-root, `cap_drop`, limites de ressources) | Implémenté | `infra/docker-compose.yml` |
@@ -31,7 +31,7 @@ Il existe encore **quatre déploiements Docker Compose séparés** (application,
 
 ## 2. Hypothèses de la gouvernance confrontées au code
 
-**Point principal : dans le socle, l'API garde ses données en mémoire.** Elle n'utilise PostgreSQL que si `STORAGE_DRIVER=postgres` (`app/backend/api/src/main.ts:42`), et cette variable n'est pas définie pour `payment-api` dans `infra/docker-compose.yml`. Conséquences :
+**Point principal : dans le socle, l'API garde ses données en mémoire.** Elle n'utilise PostgreSQL que si `STORAGE_DRIVER=postgres` (`services/payment-api/backend/api/src/main.ts:42`), et cette variable n'est pas définie pour `payment-api` dans `infra/docker-compose.yml`. Conséquences :
 
 - un simple redémarrage (première réponse au déni de service, fiche S1) efface toutes les transactions et toutes les sessions ;
 - le RPO = 0 est impossible, même sans attaque ;
