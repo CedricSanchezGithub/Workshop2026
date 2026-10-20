@@ -1,18 +1,20 @@
 # Documents de gouvernance
 
-Ce dossier contient les documents du pilier Gouvernance au format Markdown, rangés en deux dossiers :
+Ce dossier contient les documents du pilier Gouvernance au format Markdown, rangés en trois dossiers :
 
 | Dossier | Contenu | Évolue quand |
 |---|---|---|
 | `cible/` | Ce que l'équipe **vise et a décidé** : risques, objectifs de reprise, PCA/PRA, exigences réglementaires, recommandations | Une décision change |
 | `constat/` | Ce qui est **vérifié** dans le code et, après les essais, mesuré | À chaque fusion importante et à chaque essai |
+| `notions/` | Explications générales, indépendantes du projet : qu'est-ce qu'EBIOS RM, DORA, NIS2, un PCA/PRA, le RTO et le RPO | Rarement |
 
-Un document ne passe jamais d'un dossier à l'autre : quand le code avance, on met à jour `constat/`. Chaque document commence par une ligne « Statut : cible » ou « Statut : constat », pour que l'assistant sache s'il cite un plan ou un fait.
+Un document ne passe jamais d'un dossier à l'autre : quand le code avance, on met à jour `constat/`. Chaque document commence par une ligne « Statut : cible », « Statut : constat » ou « Statut : notion », pour que l'assistant sache s'il cite un plan ou un fait.
 
-Ces documents ont deux usages :
+Ces documents ont trois usages :
 
 1. **Base de connaissances de l'assistant RAG** (WOR-56) : l'assistant les indexe pour répondre aux questions des opérateurs pendant un incident.
 2. **Source des PDF** : le dossier de gouvernance et ses parties sont générés à partir d'eux (voir « Générer les PDF »).
+3. **Source du site de documentation** : `site/` en fait un site lisible, avec recherche (voir « Le site de documentation »).
 
 Ces .md sont la **version de référence**. Les PDF sont des copies générées, à ne jamais modifier à la main.
 
@@ -39,6 +41,7 @@ Attaque ──► Supervision ──► Détection ML ──► Moteur de reméd
 | `cible/ebios-rm.md` | Valeurs métier, biens supports, événements redoutés, matrice de risques | « Quels risques avons-nous retenus ? » · « Pourquoi le moteur de remédiation est-il sensible ? » |
 | `cible/nis2-dora.md` | Exigences DORA, classification des incidents majeurs, limites du prototype | « Cet incident est-il à notifier à l'ACPR ? » · « Sous quel délai ? » |
 | `cible/recommandations.md` | Arbitrages, recommandations à la direction | « Pourquoi une validation humaine pour les incidents d'intégrité ? » |
+| `notions/*.md` | Qu'est-ce qu'EBIOS RM, DORA, NIS2, un PCA/PRA, le RTO et le RPO | « C'est quoi un RPO ? » · « Que demande DORA ? » |
 | `constat/etat-implementation.md` | Ce que le code confirme, contredit ou n'implémente pas encore ; vulnérabilités relevées | « La restauration de la base existe-t-elle ? » · « Quels écarts reste-t-il avant les essais ? » |
 
 `cible/pca-pra.md` est le document le plus utile en cours d'incident, mais il décrit des actions qui ne sont pas toutes codées : `constat/etat-implementation.md` dit lesquelles existent. Les autres documents servent surtout à expliquer les décisions.
@@ -56,7 +59,7 @@ L'assistant ne lit pas un document en entier : il récupère des **morceaux**, d
 
 ## Pour l'indexation (pilier IA / Data)
 
-- **Indexer** : les documents de `cible/` et de `constat/`.
+- **Indexer** : les documents de `notions/`, `cible/` et `constat/`.
 - **Ne pas indexer** : ce README, qui décrit le dossier et non la plateforme.
 - **Garder le chemin dans la source citée** (`cible/…` ou `constat/…`) : c'est ce qui permet de distinguer un plan d'un fait. L'en-tête `---` des fichiers est supprimé à l'indexation, d'où la ligne de statut dans le texte.
 - **Découpage conseillé** : par titre de niveau 2 ou 3, en gardant le titre du document et le titre de la section dans chaque morceau, pour que l'assistant puisse citer sa source (« d'après `cible/pca-pra.md`, fiche S1 »).
@@ -78,3 +81,18 @@ Le générateur utilise le Chrome ou l'Edge déjà installé (sinon, indiquer so
 Les PDF sont rangés hors de `docs/` exprès : l'assistant indexe aussi les PDF de `docs/`, ils feraient doublon avec ces .md.
 
 Pour ajouter un document : créer le .md dans `cible/` ou `constat/`, puis l'inscrire dans `parts` de `scripts/pdf/src/config.js`.
+
+## Le site de documentation
+
+`site/` est un site Astro + Starlight qui lit directement ces .md, sans les copier ni les modifier : le titre `#` de chaque document devient le titre de la page. Pour chaque thème, le menu présente d'abord la notion générale, puis le document du projet.
+
+```
+docker compose -f docs/gouvernance/site/docker-compose.yml up --build -d
+```
+
+Puis ouvrir http://127.0.0.1:8095. Le site n'écoute que sur la machine locale : `constat/` liste les failles de la plateforme, il ne doit pas être visible sur le réseau `RESILIENCE-G6`.
+
+**Ne pas lancer `npm install` dans `site/`.** L'assistant RAG indexe tous les .md de `docs/`, y compris ceux de `site/node_modules/` s'il existe : des milliers de fichiers sans rapport viendraient polluer ses réponses. Le site se construit dans Docker, où ce dossier n'apparaît pas.
+
+Pour publier un nouveau document dans le site, l'ajouter au menu (`sidebar`) dans `site/astro.config.mjs`.
+
