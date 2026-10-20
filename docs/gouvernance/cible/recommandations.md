@@ -1,5 +1,7 @@
 # Recommandations à la direction
 
+> **Statut : cible.** Ce document décrit ce que l'équipe vise et a décidé, pas ce qui est déjà codé. L'état réel du code est suivi dans `constat/etat-implementation.md`.
+
 > Ticket : WOR-72 · Responsable : Cédric · Version 0.1 du 19/10/2026
 >
 > Synthèse des travaux de gouvernance : `ebios-rm.md`, `services-critiques.md`, `nis2-dora.md`, `rto-rpo.md`, `pca-pra.md`. Les mesures citées comme preuves seront renseignées après les essais (WOR-79) ; d'ici là, elles sont marquées *à mesurer*.
@@ -11,6 +13,10 @@
 3. **Elle ne suffit pas pour une attaque sur l'intégrité des données.** Une injection impose de préserver les preuves, de vérifier les données et de notifier, même si le service revient vite. L'automate ne doit pas décider seul dans ce cas.
 4. **Le démonstrateur repose sur un seul serveur.** C'est acceptable pour prouver le principe, pas pour la production : un deuxième site et des sauvegardes hors site sont la première dépense à prévoir.
 5. **Nous demandons trois décisions** à la direction (dernière section).
+
+## 0. Avant toute recommandation : ce que l'équipe doit livrer d'ici les essais
+
+Au 20/10, plusieurs mécanismes sur lesquels reposent ces recommandations ne sont pas encore codés : moteur de remédiation, modèle de détection, WAF du socle, sauvegarde de la base. Sans eux, les éléments vérifiables cités ci-dessous resteront vides. La liste priorisée est dans `constat/etat-implementation.md` §4.
 
 ## 1. Les arbitrages que nous avons faits
 

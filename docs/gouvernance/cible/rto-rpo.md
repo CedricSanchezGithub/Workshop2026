@@ -1,5 +1,7 @@
 # Objectifs RTO / RPO
 
+> **Statut : cible.** Ce document décrit ce que l'équipe vise et a décidé, pas ce qui est déjà codé. L'état réel du code est suivi dans `constat/etat-implementation.md`.
+
 > Ticket : WOR-70 · Responsable : Cédric · Version 0.1 du 19/10/2026
 >
 > Ce document fixe les objectifs à partir du coût d'un arrêt (`services-critiques.md`) et des seuils de DORA (`nis2-dora.md`). Il définit aussi **comment les mesurer** pendant les essais (WOR-79), pour que la comparaison objectif / mesuré soit vérifiable. Il alimente le PCA/PRA (WOR-71).
@@ -97,7 +99,15 @@ Chaque marqueur est horodaté automatiquement, sur une **même horloge** (le PC 
 
 On retient le **pire des trois essais**, pas la moyenne : un RTO se garantit, il ne s'espère pas.
 
-## 7. Ce que ces objectifs ne couvrent pas
+## 7. Ce que le code permet de tenir au 20/10
+
+- **RPO = 0 : pas tenable en l'état.** Il n'existe aucune sauvegarde de la base ; la seule remise en état repart des données de départ. Minimum avant les essais : un `pg_dump` avant chaque essai.
+- **Délai de détection : pas mesurable.** Le modèle de détection n'existe pas encore ; seule l'extraction des features (fenêtre de 60 s, pas de 10 s) est codée.
+- **Vérification de la reprise (T6) : à construire.** `/health` répond toujours « ok » ; la preuve de reprise doit être une transaction de test réussie, pas ce contrôle.
+
+Détail et sources : `constat/etat-implementation.md`.
+
+## 8. Ce que ces objectifs ne couvrent pas
 
 - **Perte du PC Hôte** (panne, rançongiciel R7) : pas de deuxième site, donc pas de RTO tenable. La reprise passe par une réinstallation depuis le dépôt Git (WOR-49), sans objectif chiffré. C'est un risque résiduel assumé, à porter dans le PCA/PRA (WOR-71).
 - **Sauvegardes sur le même hôte** : le RPO de 0 ne tient que si la base n'est pas détruite avec son hôte.

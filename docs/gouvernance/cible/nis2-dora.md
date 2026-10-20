@@ -1,5 +1,7 @@
 # Analyse NIS2 / DORA
 
+> **Statut : cible.** Ce document décrit ce que l'équipe vise et a décidé, pas ce qui est déjà codé. L'état réel du code est suivi dans `constat/etat-implementation.md`.
+
 > Ticket : WOR-69 · Responsable : Cédric · Version 0.1 du 19/10/2026
 >
 > Ce document s'appuie sur la matrice de risques (`ebios-rm.md`) et sur le coût d'un arrêt (`services-critiques.md`). Il alimente le PCA/PRA (WOR-71) et les recommandations à la direction (WOR-72).
@@ -22,7 +24,7 @@
 
 Légende : ✅ démontré par le prototype · 🟡 démontré en partie · ❌ non démontrable en 4 jours (à traiter dans un contexte industriel).
 
-Les biens supports (BS) sont ceux de `ebios-rm.md`. Les preuves sont **prévues** : elles seront confirmées par les résultats d'essais du mercredi et du jeudi (WOR-73).
+Les biens supports (BS) sont ceux de `ebios-rm.md`. Les preuves sont **prévues** : elles seront confirmées par les résultats d'essais du mercredi et du jeudi (WOR-73). L'état réel du code au 20/10 est suivi dans `constat/etat-implementation.md`.
 
 ### 2.1 Gestion du risque TIC (art. 5 à 16)
 
@@ -30,11 +32,11 @@ Les biens supports (BS) sont ceux de `ebios-rm.md`. Les preuves sont **prévues*
 |---|---|---|---|---|---|
 | Cadre de gestion du risque TIC documenté | 6 | Analyse EBIOS RM, services critiques chiffrés | — | `ebios-rm.md`, `services-critiques.md` | ✅ |
 | Identifier les fonctions critiques et leurs dépendances | 8 | Services classés par priorité, biens supports reliés aux valeurs métier | Tous | Tableaux VM ↔ BS | ✅ |
-| Protection et prévention : moindre privilège, chiffrement, gestion des secrets | 9 | Filtrage WAF, secrets hors du code, privilèges limités des conteneurs | BS5, BS9, BS8 | Configuration WAF, HashiCorp Vault, revue des droits du moteur de remédiation (WOR-64) | 🟡 un seul hôte, pas de segmentation physique |
-| Détection rapide des activités anormales | 10 | Détection ML sur les métriques et journaux, alertes SIEM | BS6, BS7 | Horodatage attaque → alerte, mesuré pendant l'essai | ✅ |
-| Réponse et rétablissement : politique de continuité, reprise des fonctions critiques | 11 | **Cœur de la démo** : remédiation automatique, puis transaction fictive réussie | BS8, BS2, BS4 | Durée attaque → transaction réussie, comparée au RTO (WOR-70) | ✅ |
+| Protection et prévention : moindre privilège, chiffrement, gestion des secrets | 9 | Filtrage WAF, secrets hors du code, privilèges limités des conteneurs | BS5, BS9, BS8 | Configuration WAF, HashiCorp Vault, revue des droits du moteur de remédiation (WOR-64) | 🟡 un seul hôte ; au 20/10, WAF absent du socle, secrets de l'application hors de Vault, port de la base publié |
+| Détection rapide des activités anormales | 10 | Détection ML sur les métriques et journaux, alertes SIEM | BS6, BS7 | Horodatage attaque → alerte, mesuré pendant l'essai | 🟡 prévu : au 20/10, features extraites mais pas encore de modèle ni d'alerte |
+| Réponse et rétablissement : politique de continuité, reprise des fonctions critiques | 11 | **Cœur de la démo** : remédiation automatique, puis transaction fictive réussie | BS8, BS2, BS4 | Durée attaque → transaction réussie, comparée au RTO (WOR-70) | 🟡 prévu : au 20/10, moteur de remédiation pas encore codé |
 | Tests du plan de continuité | 11.6 | Scénario d'attaque rejoué et chronométré | Tous | Résultats d'essais | 🟡 un seul scénario, pas de programme annuel |
-| Sauvegarde et restauration, sans perte de données validées | 12 | Restauration de la base, contrôle de cohérence après reprise | BS4 | Comptage des transactions avant / après | 🟡 sauvegarde sur le même hôte |
+| Sauvegarde et restauration, sans perte de données validées | 12 | Restauration de la base, contrôle de cohérence après reprise | BS4 | Comptage des transactions avant / après | ❌ au 20/10, aucune sauvegarde de la base |
 | Capacités redondantes | 12.4 | — | BS11 | — | ❌ hôte unique, point de défaillance unique assumé |
 | Retour d'expérience après incident | 13 | Analyse post-incident à partir des journaux, aidée par l'assistant RAG | BS6, BS10 | Rapport d'incident généré après l'essai | 🟡 |
 | Communication de crise | 14 | — | — | Plan de communication dans le PCA (WOR-71) | 🟡 sur papier |
@@ -62,7 +64,7 @@ Les biens supports (BS) sont ceux de `ebios-rm.md`. Les preuves sont **prévues*
 |---|---|---|---|
 | Registre des accords avec les prestataires TIC | 28.3 | Inventaire des briques utilisées (images Docker, Ollama, modèles) | 🟡 inventaire technique, pas contractuel |
 | Clauses contractuelles obligatoires, stratégies de sortie | 28.8, 30 | — | ❌ aucun contrat |
-| Concentration du risque sur un prestataire | 29 | Tout est auto-hébergé, sans dépendance à un cloud | ✅ par construction, mais au prix de l'hôte unique |
+| Concentration du risque sur un prestataire | 29 | Tout est auto-hébergé, sauf l'assistant de discussion de l'application, qui appelle OpenAI | 🟡 un prestataire externe à inscrire au registre, ou à remplacer par le modèle local (Ollama) |
 
 ### 2.5 Partage d'informations (art. 45)
 

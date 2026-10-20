@@ -1,5 +1,7 @@
 # Services critiques et coût d'un arrêt de paiement
 
+> **Statut : cible.** Ce document décrit ce que l'équipe vise et a décidé, pas ce qui est déjà codé. L'état réel du code est suivi dans `constat/etat-implementation.md`.
+
 > Ticket : WOR-68 · Responsable : Cédric · Version 0.1 du 19/10/2026
 >
 > Ce document sert d'entrée à l'EBIOS RM (échelle de gravité, voir `ebios-rm.md`), aux objectifs RTO/RPO (WOR-70) et au PCA/PRA (WOR-71).
@@ -52,7 +54,7 @@ La perte directe reste modeste. **Le vrai coût vient des effets de seuil** : la
 | Rang | Service | Criticité | Pourquoi | Dégradation acceptable |
 |---|---|---|---|---|
 | 1 | Traitement des transactions (API de paiement et base de données) | **Vitale** | Porte directement le revenu et l'engagement envers les partenaires | Aucune |
-| 2 | Authentification | **Vitale** | Sans elle, aucune transaction ne peut être initiée | Aucune |
+| 2 | Authentification | **Vitale** | Sans elle, aucune transaction ne peut être initiée. Intégrée à l'API, avec des sessions stockées en base : elle tombe avec la base | Aucune |
 | 3 | WAF / point d'entrée | **Vitale** | Point de passage unique de tout le trafic | Un contournement temporaire n'est **pas** acceptable (exposition directe) |
 | 4 | Journalisation et SIEM | Importante | Aucun revenu en jeu, mais elle est indispensable à l'investigation et à la conformité | Arrêt de quelques heures, **sans perte** de journaux |
 | 5 | Consultation de l'historique | Importante | Gêne pour les partenaires, sans perte de revenu | Mode dégradé possible (lecture différée) |

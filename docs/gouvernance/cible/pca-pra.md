@@ -1,10 +1,12 @@
 # PCA / PRA — Plateforme de paiement RESILIENCE-ALPHA
 
+> **Statut : cible.** Ce document décrit ce que l'équipe vise et a décidé, pas ce qui est déjà codé. L'état réel du code est suivi dans `constat/etat-implementation.md`.
+
 > Ticket : WOR-71 · Responsable : Cédric · Version 0.1 du 19/10/2026
 >
 > Ce plan s'appuie sur la matrice de risques (`ebios-rm.md`), le coût d'un arrêt (`services-critiques.md`), les objectifs de reprise (`rto-rpo.md`) et l'analyse réglementaire (`nis2-dora.md`).
 >
-> **Statut :** les mécanismes décrits sont ceux **prévus** pour le démonstrateur. Chaque fiche sera confirmée ou corrigée après les essais de restauration (WOR-75), le chaos engineering (WOR-76) et les répétitions (WOR-78).
+> **Statut :** les mécanismes décrits sont ceux **prévus** pour le démonstrateur. Au 20/10, le moteur de remédiation, le modèle de détection, le WAF du socle et les sauvegardes ne sont pas encore codés : voir `constat/etat-implementation.md`. Chaque fiche sera confirmée ou corrigée après les essais de restauration (WOR-75), le chaos engineering (WOR-76) et les répétitions (WOR-78).
 >
 > Ce document est indexé par l'assistant RAG (WOR-56). Chaque fiche scénario est donc rédigée pour être lue seule.
 
@@ -161,8 +163,8 @@ Quand la reprise automatique échoue, on maintient ce qui peut l'être :
 | Code et configuration des services | Dépôt Git, version taguée (WOR-80) | Redéploiement Docker Compose et Ansible | À chaque livraison | Reza |
 | Règles du WAF | Dépôt Git | Rechargement à chaud | À chaque modification | Axel |
 | Secrets | HashiCorp Vault, sur le PC Hôte | Rotation puis redémarrage des services concernés | Après tout incident d'intégrité | Axel |
-| Base de données | Snapshot + journal des transactions (à confirmer, `rto-rpo.md` §5) | Restauration du snapshot puis rejeu | À définir avec Reza | Reza, Michael |
-| Journaux | Loki | **Jamais écrasés** ; copiés avant toute restauration | En continu | Axel |
+| Base de données | **Aucune sauvegarde au 20/10.** Cible : snapshot + journal des transactions (`rto-rpo.md` §5) | Restauration du snapshot puis rejeu | Minimum : un `pg_dump` avant chaque essai | Reza, Michael |
+| Journaux | Loki, rétention 7 jours, sur le PC Hôte | **Jamais écrasés** ; copiés avant toute restauration. Au 20/10, la remise à l'état sain les supprime sans copie | En continu | Axel |
 | Modèle ML | Dépôt Git (`ml/`) | Rechargement de la version validée | À chaque entraînement | Léa |
 | Index du RAG | Documents du dépôt | Réindexation | À chaque mise à jour des documents | Léa |
 
