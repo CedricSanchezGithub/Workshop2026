@@ -1,6 +1,6 @@
 # Site de documentation de la gouvernance — POC du pilier Gouvernance
 #   docker compose -f docs/gouvernance/site/docker-compose.yml up --build -d
-#   puis http://127.0.0.1:8095
+#   puis http://127.0.0.1:8096
 name: gouvernance-site
 
 services:
@@ -11,7 +11,7 @@ services:
     ports:
       # Local uniquement : l'accès extérieur passe par Tailscale (funnel), qui relaie vers ce
       # port. Ne pas publier directement sur le réseau RESILIENCE-G6.
-      - "127.0.0.1:8095:8080"
+      - "127.0.0.1:8096:8080"
     read_only: true
     tmpfs:
       - /tmp

@@ -16,18 +16,18 @@
 
 ## 0. Avant toute recommandation : ce que l'équipe doit livrer d'ici les essais
 
-Au 20/10, plusieurs mécanismes sur lesquels reposent ces recommandations ne sont pas encore codés : moteur de remédiation, modèle de détection, sauvegarde de la base ; et dans le socle, l'API garde ses données en mémoire, donc un redémarrage les perd. Sans eux, les éléments vérifiables cités ci-dessous resteront vides. La liste priorisée est dans `constat/etat-implementation.md` §4.
+Au 20/10, la chaîne détection → remédiation → vérification est codée, mais pas encore mesurée. Il manque la sauvegarde de la base, et dans le socle l'API garde ses données en mémoire : chaque redémarrage ou restauration perd les transactions. Sans eux, les éléments vérifiables cités ci-dessous resteront vides. La liste priorisée est dans `constat/etat-implementation.md` §4.
 
 ## 1. Les arbitrages que nous avons faits
 
 | Arbitrage | Ce que nous avons choisi | Ce que nous avons écarté | Pourquoi | Ce que ça coûte |
 |---|---|---|---|---|
 | **Quoi protéger d'abord** | La chaîne de paiement : API, base, authentification, WAF | Protéger tous les services au même niveau | Ce sont eux qui portent le revenu et l'engagement envers les 200 partenaires | L'assistant RAG et la consultation passent après |
-| **Automatique ou humain** | Automatique pour les actions réversibles (limitation, redémarrage) ; un humain valide les actions destructrices et les incidents d'intégrité | Tout automatiser, ou tout faire valider | La vitesse compte pour la disponibilité ; une restauration à tort coûte plus cher qu'une minute d'arrêt | Une injection est traitée moins vite qu'un déni de service |
-| **Vitesse ou preuves** | Copier les journaux et la base compromise **avant** de restaurer | Restaurer au plus vite | Sans preuves, pas d'investigation ni de notification DORA crédible | Quelques secondes de plus sur la reprise |
+| **Automatique ou humain** | Pour la démo : tout automatique, un humain n'intervient qu'en cas d'échec (2 tentatives) | Faire valider les restaurations par une personne | Montrer une reprise sans intervention dans le temps imparti | Une alerte à tort peut déclencher une restauration ; en production, nous recommandons l'inverse (REC-2, REC-3) |
+| **Vitesse ou preuves** | Restaurer au plus vite ; preuves exportées à la main (`scripts/export-logs.sh`) | Bloquer la reprise tant que la copie n'est pas faite | Garder le temps de reprise court | Si l'export est oublié, une remise à l'état sain efface les preuves |
 | **Scénario principal de la démo** | Déni de service (risque R1) ; injection en second scénario | Une seule attaque | R1 est le risque le plus élevé ; le second scénario montre que la réponse dépend du type d'incident | Deux chaînes de remédiation à construire et tester |
 | **Hébergement** | Tout sur un hôte, sans dépendance à un cloud | Services managés | Imposé par le cadre du projet ; évite aussi le risque lié à un prestataire | Point de défaillance unique, assumé et documenté |
-| **Restauration après injection** | *À trancher* : snapshot seul, ou snapshot et rejeu des transactions légitimes | — | Le snapshot seul perd des transactions confirmées (objectif : zéro) | Le rejeu demande un journal des transactions |
+| **Restauration après injection** | Retour à l'état de départ : recréation du conteneur de l'API | Snapshot et rejeu des transactions légitimes | Simple et rapide à démontrer | **Toutes les transactions sont perdues** : RPO = 0 non tenu (REC-6) |
 | **Référentiels** | DORA, EBIOS RM ; NIS2 en grille de lecture | PCI DSS | Aucune donnée de carte manipulée | — |
 
 ## 2. Recommandations
@@ -39,8 +39,8 @@ Chaque recommandation repose sur un élément **vérifiable**, issu de nos essai
 | # | Recommandation | Élément vérifiable | Effort |
 |---|---|---|---|
 | REC-1 | **Généraliser la reprise automatique** aux incidents de disponibilité sur toute la chaîne de paiement | RTO mesuré sur 3 essais, pire cas retenu (*à mesurer*) ; nombre d'interventions humaines pendant les répétitions : objectif 0 (WOR-78) | Moyen |
-| REC-2 | **Garder un humain dans la boucle pour les incidents d'intégrité** : blocage automatique, mais restauration et notification validées par une personne | Fiche S2 du PCA ; délai entre l'alerte et la décision humaine, à mesurer en exercice | Faible |
-| REC-3 | **Exiger deux signaux concordants** avant toute action destructrice | Taux de faux positifs du modèle ML (WOR-52) ; nombre de remédiations à tort pendant le chaos engineering (WOR-76) (*à mesurer*) | Faible |
+| REC-2 | **Garder un humain dans la boucle pour les incidents d'intégrité** : blocage automatique, mais restauration et notification validées par une personne. Le démonstrateur restaure automatiquement : c'est un choix de démo, pas une cible de production | Fiche S2 du PCA ; délai entre l'alerte et la décision humaine, à mesurer en exercice | Faible |
+| REC-3 | **Exiger deux signaux concordants** avant toute action destructrice (le démonstrateur agit sur une seule alerte ML) | Taux de faux positifs du modèle ML (WOR-52) ; nombre de remédiations à tort pendant le chaos engineering (WOR-76) (*à mesurer*) | Faible |
 | REC-4 | **Encadrer le moteur de remédiation** comme un bien critique : périmètre d'actions limité, appels authentifiés, journalisation | Revue des droits du moteur (WOR-64) ; essai d'appel depuis un composant non autorisé, qui doit être refusé | Moyen |
 
 ### Priorité 2 — dans les 6 mois

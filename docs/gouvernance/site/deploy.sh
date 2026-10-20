@@ -57,4 +57,4 @@ docker compose -f "$COMPOSE" up --build --detach --quiet-pull
 docker image prune --force --filter "label=com.docker.compose.project=gouvernance-site" >/dev/null || true
 
 log "Site à jour : $(git -C "$DEST" log -1 --format='%h %s')"
-log "Accès local : http://127.0.0.1:8095 — publication : sudo tailscale funnel --bg 8095"
+log "Accès local : http://127.0.0.1:8096 — publication : sudo tailscale funnel --bg 8096"

@@ -10,7 +10,7 @@
 docker compose -f docs/gouvernance/site/docker-compose.yml up --build -d
 ```
 
-Puis ouvrir http://127.0.0.1:8095. Le conteneur n'écoute que sur la machine locale ; pour le rendre accessible ailleurs, passer par Tailscale (voir « Déployer le site sur une autre machine »).
+Puis ouvrir http://127.0.0.1:8096. Le conteneur n'écoute que sur la machine locale ; pour le rendre accessible ailleurs, passer par Tailscale (voir « Déployer le site sur une autre machine »).
 
 **Ne pas lancer `npm install` dans `site/`.** L'assistant RAG indexe tous les .md de `docs/`, y compris ceux de `site/node_modules/` s'il existe : des milliers de fichiers sans rapport viendraient polluer ses réponses. Le site se construit dans Docker, où ce dossier n'apparaît pas.
 
@@ -24,7 +24,7 @@ Le site publie les dossiers `notions/`, `cible/`, `constat/` et `autre/` (liste 
 
 ```
 curl -fsSL https://raw.githubusercontent.com/CedricSanchezGithub/Workshop2026/main/docs/gouvernance/site/deploy.sh | bash
-sudo tailscale funnel --bg 8095
+sudo tailscale funnel --bg 8096
 ```
 
 `tailscale funnel` publie le site sur Internet en HTTPS, à l'adresse affichée par `tailscale funnel status` : il suffit d'envoyer ce lien. Le site est public, sans mot de passe, comme le dépôt GitHub dont il reprend le contenu. Funnel doit être autorisé une fois dans la console Tailscale.
