@@ -1,0 +1,16 @@
+# Provisionnement des dashboards Grafana (IaC, WOR-47/WOR-61).
+# Les fichiers *.json de ce dossier sont chargés au démarrage ; non modifiables depuis l'UI
+# (editable: false) pour qu'un déploiement de jeudi soit identique à celui de lundi.
+apiVersion: 1
+
+providers:
+  - name: resilience-alpha
+    orgId: 1
+    folder: Sécurité
+    type: file
+    disableDeletion: true
+    allowUiUpdates: false
+    updateIntervalSeconds: 30
+    options:
+      path: /etc/grafana/provisioning/dashboards
+      foldersFromFilesStructure: false

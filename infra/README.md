@@ -7,7 +7,7 @@ Responsable Infrastructure : Reza. Déploiement reproductible (WOR-49).
 | `docker-compose.yml` | Tous les microservices, réseaux segmentés, healthchecks, limites | WOR-43 | socle en place (Postgres + observabilité), services métier à ajouter |
 | `prometheus/` | Scrape + règles d'alerte | WOR-45 | scrape du socle ; exporters et alertes à faire |
 | `loki/`, `alloy/` | Centralisation des logs : Loki + agent Alloy (via socket-proxy) | WOR-46 | en place : journaux de tous les conteneurs du projet |
-| `grafana/provisioning/` | Datasources + dashboards provisionnés (IaC) | WOR-47 | datasources provisionnées ; dashboards à faire |
+| `grafana/provisioning/` | Datasources + dashboards provisionnés (IaC) | WOR-47 | datasources + dashboard SOC/SIEM (WOR-61) ; dashboards métier à faire |
 | `vault/` | Gestion des secrets : HashiCorp Vault + Vault Agent | WOR-62 | en place (Postgres, Grafana) |
 | `waf/` | Filtrage applicatif (ModSecurity + OWASP CRS) devant front + API | WOR-60 | en place : bloque les injections (403), audit JSON → Loki |
 
