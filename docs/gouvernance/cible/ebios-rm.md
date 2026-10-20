@@ -224,14 +224,7 @@ Règle des niveaux, identique à la matrice initiale : 🔴 si G4 et V2 ou plus 
 
 ## Validation par les coachs (WOR-32)
 
-La version initiale (ateliers 1 et 2) a été validée par les coachs. Remarques éventuelles des coachs : à reporter ici.
-
-Points qui leur ont été soumis :
-
-1. Le périmètre des valeurs métier : faut-il garder VM6 (la capacité de reprise) comme valeur métier, ou seulement comme bien support ?
-2. Les sources de risque écartées (SR5 et SR6) et leur justification.
-3. Le choix de R1 comme scénario principal de la démo.
-4. L'échelle de gravité chiffrée (durée d'arrêt et coût, voir `services-critiques.md`) : les hypothèses sur l'entreprise fictive sont-elles crédibles ?
+Ateliers 1 et 2 validés le 19/10/2026. Remarques des coachs : à reporter ici.
 
 ## Suites
 

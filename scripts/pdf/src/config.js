@@ -8,6 +8,16 @@ module.exports = {
   outputRoot: path.join(ROOT, 'livrables'),
   dossiers: [
     {
+      // Rendu imposé par le sujet (§7.1) : un seul PDF, nommé Workshop2026-M2-G<n>-Dossier.pdf
+      id: 'Workshop2026-M2-G6',
+      title: 'Workshop 2026 — M2 — Groupe 6',
+      subtitle: "PROJECT RESILIENCE-ALPHA · Dossier d'ingénierie et de gouvernance",
+      sourceDir: path.join(ROOT, 'docs', 'dossier'),
+      fullName: 'Workshop2026-M2-G6-Dossier',
+      partPdfs: false,
+      parts: [{ source: 'dossier.md', name: 'Dossier' }],
+    },
+    {
       id: 'gouvernance',
       title: 'Workshop 2026 — Groupe 6',
       subtitle: 'PROJECT RESILIENCE-ALPHA · Dossier de gouvernance — état au 20/10/2026',

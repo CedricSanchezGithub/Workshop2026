@@ -2,14 +2,14 @@
 
 > **Statut : cible.** Ce document décrit ce que l'équipe vise et a décidé, pas ce qui est déjà codé. L'état réel du code est suivi dans `constat/etat-implementation.md`.
 
-> Ticket : WOR-70 · Responsable : Cédric · Version 0.1 du 19/10/2026
+> Ticket : WOR-70 · Responsable : Cédric · Version 0.2 du 20/10/2026
 >
-> Ce document fixe les objectifs à partir du coût d'un arrêt (`services-critiques.md`) et des seuils de DORA (`nis2-dora.md`). Il définit aussi **comment les mesurer** pendant les essais (WOR-79), pour que la comparaison objectif / mesuré soit vérifiable. Il alimente le PCA/PRA (WOR-71).
+> Objectifs fixés à partir du coût d'un arrêt (`services-critiques.md`) et des seuils de DORA (`nis2-dora.md`), avec **la façon de les mesurer** pendant les essais (WOR-79).
 
 ## 1. Définitions retenues
 
-- **RTO** (durée maximale d'interruption) : temps entre le **début de l'impact** (première transaction en échec) et la **première transaction réussie et vérifiée** après la reprise. On compte depuis l'impact, pas depuis la détection : c'est ce que subissent les partenaires, et c'est ce que DORA mesure (« service downtime »).
-- **RPO** (perte de données maximale admissible) : quantité de **transactions confirmées au client** qui manquent ou sont dupliquées après la reprise. On l'exprime en nombre de transactions (et en durée équivalente quand une restauration est en jeu).
+- **RTO** (durée maximale d'interruption) : temps entre le **début de l'impact** (première transaction en échec) et la **première transaction réussie et vérifiée** après la reprise. On compte depuis l'impact, pas depuis la détection : c'est ce que subissent les partenaires, et ce que DORA mesure.
+- **RPO** (perte de données maximale admissible) : quantité de **transactions confirmées au client** qui manquent ou sont dupliquées après la reprise. On l'exprime en nombre de transactions.
 - **Reprise vérifiée** : API accessible, transaction test réussie, données cohérentes (WOR-77). Un conteneur redémarré ne compte pas.
 
 ## 2. Deux niveaux d'objectifs
@@ -17,7 +17,7 @@
 | Niveau | À quoi il sert | D'où il vient |
 |---|---|---|
 | **Objectif métier** | Ce que l'entreprise fictive exige ; c'est ce qu'on présente à la direction | Coût d'un arrêt : au-delà de 5 min, l'incident sort de G1 ; au-delà de 30 min, l'incident passe en G3 : le budget SLA de 43 min par mois est presque consommé (pénalité d'environ 650 k€ au-delà) et la notification DORA devient probable |
-| **Cible du démonstrateur** | Ce qu'on vise et mesure sur le PC Hôte | Objectif métier, avec de la marge, et la contrainte du Clip Chrono : 60 s en continu entre l'attaque et le service rétabli (WOR-83) |
+| **Cible du démonstrateur** | Ce qu'on vise et mesure sur le PC Hôte | Objectif métier, avec de la marge, et la contrainte du Clip Chrono (vidéo continue de 60 s exigée par le sujet) : 60 s en continu entre l'attaque et le service rétabli (WOR-83) |
 
 ## 3. Objectifs par service
 
@@ -52,13 +52,13 @@ T0 désigne le lancement de l'attaque sur le PC Attaquant. L'écart T0 → T1 d�
 
 **Ce que fait le code :** le moteur recrée le conteneur de l'API, qui garde ses données en mémoire. Le service revient vite, mais **toutes les transactions sont perdues** (RPO non tenu). C'est le choix retenu pour l'instant ; les options ci-dessous restent celles à étudier pour tenir le RPO = 0.
 
-WOR-29 prévoit un **retour à un snapshot propre de la base**. C'est incompatible avec un RPO de 0 : toutes les transactions légitimes validées entre le snapshot et la restauration seraient perdues.
+Le scénario d'attaque (WOR-29) prévoyait un **retour à une copie instantanée (snapshot) propre de la base**. C'est incompatible avec un RPO de 0 : toutes les transactions légitimes validées entre le snapshot et la restauration seraient perdues.
 
 | Option | RPO obtenu | Effort | Avis |
 |---|---|---|---|
 | 1. Snapshot périodique seul (par exemple toutes les 5 min) | Jusqu'à 5 min de transactions perdues | Faible | Simple, mais contredit l'objectif métier et provoque un incident majeur DORA (perte de données) |
 | 2. **Snapshot + rejeu des transactions légitimes** depuis un journal en ajout seul, en écartant celles qui viennent de la source bloquée | **0** si le rejeu est correct | Moyen | **Recommandé** : démontre l'objectif métier, et le tri entre légitime et malveillant est un bon argument pour le jury |
-| 3. Restauration à un instant précis (PITR, par exemple l'archivage des WAL avec PostgreSQL), juste avant la première requête malveillante | Proche de 0, mais les transactions légitimes postérieures sont perdues | Moyen à élevé | Solution industrielle de référence, à citer dans les recommandations |
+| 3. Restauration à un instant précis (avec PostgreSQL : archivage continu du journal des écritures), juste avant la première requête malveillante | Proche de 0, mais les transactions légitimes postérieures sont perdues | Moyen à élevé | Solution industrielle de référence, à citer dans les recommandations |
 | 4. Correction ciblée : annuler les seules lignes altérées, sans restauration globale | 0 | Élevé et risqué | Non retenu pour un prototype de 4 jours |
 
 **Proposition :** option 2 si l'équipe a le temps de brancher l'API sur PostgreSQL, option 3 citée comme cible industrielle. Dans tous les cas, **les journaux sont copiés avant la restauration** (`scripts/export-logs.sh`) : ce sont des preuves pour l'investigation et la notification.
@@ -86,16 +86,12 @@ Chaque marqueur est horodaté automatiquement, sur une **même horloge** (le PC 
 
 ### Grille de résultats
 
-À remplir pendant les répétitions (WOR-78) : trois essais minimum par attaque.
+Trois essais minimum par attaque pendant les répétitions (WOR-78) ; détail des essais dans le journal du moteur.
 
-| Essai | Attaque | T1 → T3 détection | T3 → T6 reprise | **RTO mesuré** | Transactions perdues ou dupliquées | Objectif tenu ? |
-|---|---|---|---|---|---|---|
-| 1 | A | | | | | |
-| 2 | A | | | | | |
-| 3 | A | | | | | |
-| 1 | B | | | | | |
-| 2 | B | | | | | |
-| 3 | B | | | | | |
+| Attaque | Détection T1 → T3 | Reprise T3 → T6 | **RTO mesuré** (pire des 3) | Transactions perdues ou dupliquées | Objectif tenu ? |
+|---|---|---|---|---|---|
+| A — déni de service | | | | | |
+| B — injection | | | | | |
 
 On retient le **pire des trois essais**, pas la moyenne : un RTO se garantit, il ne s'espère pas.
 
