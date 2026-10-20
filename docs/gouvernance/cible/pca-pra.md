@@ -2,13 +2,9 @@
 
 > **Statut : cible.** Ce document décrit ce que l'équipe vise et a décidé, pas ce qui est déjà codé. L'état réel du code est suivi dans `constat/etat-implementation.md`.
 
-> Ticket : WOR-71 · Responsable : Cédric · Version 0.1 du 19/10/2026
+> Ticket : WOR-71 · Responsable : Cédric · Version 0.2 du 20/10/2026
 >
-> Ce plan s'appuie sur la matrice de risques (`ebios-rm.md`), le coût d'un arrêt (`services-critiques.md`), les objectifs de reprise (`rto-rpo.md`) et l'analyse réglementaire (`nis2-dora.md`).
->
-> **Statut :** les actions automatiques décrites sont celles du code (moteur de remédiation `services/remediation/`, playbooks `ansible/playbooks/remediation/`), relevées dans `constat/etat-implementation.md` v0.3. Chaque fiche sera confirmée ou corrigée après les essais de restauration (WOR-75), le chaos engineering (WOR-76) et les répétitions (WOR-78).
->
-> Ce document est indexé par l'assistant RAG (WOR-56). Chaque fiche scénario est donc rédigée pour être lue seule.
+> **Statut :** les actions automatiques décrites sont celles du code (moteur de remédiation `services/remediation/`, playbooks `ansible/playbooks/remediation/`), relevées dans `constat/etat-implementation.md` v0.3. Chaque fiche sera confirmée après les essais (§9). Chaque fiche se lit seule : l'assistant RAG peut la citer isolément.
 
 ## 1. Objet et périmètre
 
@@ -24,16 +20,7 @@
 
 ### 2.1 Dans l'entreprise fictive
 
-| Rôle | Responsabilité pendant un incident |
-|---|---|
-| **Moteur de remédiation (automate)** | Premier intervenant : détecte, décide, agit et vérifie dans le périmètre d'actions qui lui est autorisé |
-| **Opérateur d'astreinte** (équipe production) | Surveille le tableau de bord, reprend la main si l'automate échoue ou sort de son périmètre |
-| **Responsable de la production** | Décide des restaurations de données et des modes dégradés |
-| **RSSI** | Qualifie les incidents de sécurité, décide de la préservation des preuves et de la rotation des secrets |
-| **Directeur de crise** (direction des opérations) | Pilote la cellule de crise, arbitre entre reprise rapide et investigation |
-| **Conformité** | Classe l'incident selon DORA et prépare les notifications à l'ACPR |
-| **Communication** | Informe les partenaires commerçants |
-| **DPO** | Évalue l'atteinte aux données personnelles (RGPD) |
+Le **moteur de remédiation** intervient en premier, dans son périmètre d'actions. L'**opérateur d'astreinte** reprend la main s'il échoue. Le **responsable de la production** décide des restaurations et des modes dégradés ; le **RSSI** qualifie les incidents de sécurité et décide de la préservation des preuves ; le **directeur de crise** arbitre entre reprise rapide et investigation. La **conformité** classe l'incident selon DORA et notifie l'ACPR, la **communication** informe les partenaires, le **DPO** évalue l'atteinte aux données personnelles.
 
 ### 2.2 Dans l'équipe du démonstrateur
 
@@ -130,7 +117,7 @@ Les seuils viennent du coût d'un arrêt (`services-critiques.md`).
 - **Signaux :** volume de lecture anormal, requêtes inhabituelles sur la base, sortie de données vers une destination inconnue
 - **Conduite à tenir :** couper l'accès de la source, préserver les preuves, **ne pas restaurer** (restaurer n'efface pas une fuite), prévenir le DPO
 - **Escalade :** N2
-- **Remarque :** non joué pendant la démo ; la fiche montre que la réponse diffère d'une simple remise en service (WOR-39)
+- **Remarque :** non joué pendant la démo ; la réponse diffère d'une simple remise en service
 
 ### Fiche S7 — Perte du PC Hôte (PRA)
 
@@ -163,7 +150,7 @@ Quand la reprise automatique échoue, on maintient ce qui peut l'être :
 | Règles du WAF | Dépôt Git | Liste d'IP bloquées : rechargement à chaud ; autres règles : redémarrage du WAF | À chaque modification | Axel |
 | Secrets | HashiCorp Vault, sur le PC Hôte | Rotation puis redémarrage des services concernés | Après tout incident d'intégrité | Axel |
 | Données de l'API | **En mémoire dans le socle, aucune sauvegarde** | Recréation du conteneur : retour aux données de départ (`restore-service.yml`) | — (minimum souhaité : base PostgreSQL et `pg_dump` avant chaque essai) | Reza, Michael |
-| Journaux | Loki, rétention 7 jours, sur le PC Hôte | **Jamais écrasés** ; copiés avant toute restauration avec `scripts/export-logs.sh`. Au 20/10, la remise à l'état sain n'appelle pas cet export : il faut le lancer à la main | En continu | Axel |
+| Journaux | Loki, rétention 7 jours, sur le PC Hôte | **Jamais écrasés** ; copiés avant toute restauration avec `scripts/export-logs.sh` (à la main pour l'instant) | En continu | Axel |
 | Modèle ML | Dépôt Git (`ml/`) | Rechargement de la version validée | À chaque entraînement | Léa |
 | Index du RAG | Documents du dépôt | Réindexation | À chaque mise à jour des documents | Léa |
 
@@ -187,8 +174,7 @@ Délais DORA : règlement délégué (UE) 2025/301. L'assistant RAG peut prépar
 | L'attaquant revient, depuis une autre source | Le blocage est fait par source, sur un seul hôte | Protection anti-déni de service en amont (contexte industriel) |
 | Vulnérabilité toujours présente après une injection | Le WAF bloque, mais le code n'est pas corrigé | Correctif et test de non-régression avant de lever le niveau N1 |
 | Porte dérobée ou altération ancienne | Restaurer les données ne nettoie pas tout | Analyse après incident à partir des journaux conservés |
-| Hôte unique | Point de défaillance unique | Deuxième site et sauvegardes hors site (`nis2-dora.md` §4) |
-| Sauvegardes sur le même hôte | Perdues avec l'hôte | Copie hors site, immuable |
+| Hôte unique, sans sauvegarde hors site | Choix du prototype | Voir les limites industrielles, `recommandations.md` §3 |
 | Boucle de remédiation | Un incident persistant peut faire redémarrer un service en boucle | 2 tentatives par incident, puis escalade ; pas encore de limite entre incidents |
 | Faux positifs ML | Modèle entraîné sur du trafic normal seulement ; une alerte suffit à restaurer | Évaluer le modèle sur des attaques ; en production, deux signaux pour les actions destructrices (REC-3) |
 | Droits élevés du moteur de remédiation | Nécessaires pour agir sur les conteneurs | Périmètre limité, authentification, journalisation (WOR-64) |

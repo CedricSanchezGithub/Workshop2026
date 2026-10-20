@@ -17,10 +17,9 @@ async function main() {
       fs.mkdirSync(outDir, { recursive: true });
       const parts = dossier.parts.map((p) => ({ ...p, md: read(path.join(dossier.sourceDir, p.source)) }));
 
-      const outputs = [
-        [dossierPage(dossier, read(dossier.cover), parts.map((p) => p.md)), `${dossier.fullName}.pdf`],
-        ...parts.map((p, i) => [partPage(p.md), `${number(i)}-${p.name}.pdf`]),
-      ];
+      const cover = dossier.cover ? read(dossier.cover) : '';
+      const outputs = [[dossierPage(dossier, cover, parts.map((p) => p.md)), `${dossier.fullName}.pdf`]];
+      if (dossier.partPdfs !== false) outputs.push(...parts.map((p, i) => [partPage(p.md), `${number(i)}-${p.name}.pdf`]));
       for (const [html, name] of outputs) {
         const file = path.join(outDir, name);
         await printer.print(html, file);

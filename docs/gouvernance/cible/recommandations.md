@@ -2,15 +2,15 @@
 
 > **Statut : cible.** Ce document décrit ce que l'équipe vise et a décidé, pas ce qui est déjà codé. L'état réel du code est suivi dans `constat/etat-implementation.md`.
 
-> Ticket : WOR-72 · Responsable : Cédric · Version 0.1 du 19/10/2026
+> Ticket : WOR-72 · Responsable : Cédric · Version 0.2 du 20/10/2026
 >
-> Synthèse des travaux de gouvernance : `ebios-rm.md`, `services-critiques.md`, `nis2-dora.md`, `rto-rpo.md`, `pca-pra.md`. Les mesures citées comme preuves seront renseignées après les essais (WOR-79) ; d'ici là, elles sont marquées *à mesurer*.
+> Synthèse des autres documents de `cible/`. Les preuves seront renseignées après les essais (WOR-79) ; d'ici là, elles sont marquées *à mesurer*.
 
 ## Synthèse pour la direction
 
 1. **Un arrêt de paiement coûte peu pendant 5 minutes, puis le coût explose.** Une heure d'arrêt en pointe coûte environ 700 k€, essentiellement en pénalités contractuelles, et déclenche probablement une notification à l'ACPR au titre de DORA.
 2. **La reprise automatique est donc l'investissement prioritaire.** Le démonstrateur vise un retour du service vérifié en moins d'une minute sur un déni de service, contre 30 minutes ou plus pour une reprise manuelle.
-3. **Elle ne suffit pas pour une attaque sur l'intégrité des données.** Une injection impose de préserver les preuves, de vérifier les données et de notifier, même si le service revient vite. L'automate ne doit pas décider seul dans ce cas.
+3. **Elle ne suffit pas pour une attaque sur l'intégrité des données.** Une injection impose de préserver les preuves, de vérifier les données et de notifier, même si le service revient vite. En production, l'automate ne doit pas décider seul dans ce cas ; le démonstrateur le fait, pour la démonstration.
 4. **Le démonstrateur repose sur un seul serveur.** C'est acceptable pour prouver le principe, pas pour la production : un deuxième site et des sauvegardes hors site sont la première dépense à prévoir.
 5. **Nous demandons trois décisions** à la direction (dernière section).
 
@@ -70,6 +70,8 @@ Chaque recommandation repose sur un élément **vérifiable**, issu de nos essai
 | Un modèle ML entraîné sur quelques dizaines de minutes de trafic | Plusieurs semaines de données réelles, réentraînement régulier, suivi de la dérive du modèle |
 | Deux scénarios d'attaque, joués par l'équipe | Programme de tests annuel, tests d'intrusion par des testeurs indépendants (TLPT si l'entité est désignée) |
 | Notification décrite sur papier | Procédure exercée, astreinte conformité, modèles de rapports ACPR |
+| Aucun contrat avec les prestataires TIC | Registre d'information, clauses DORA, plans de sortie (REC-11) |
+| Données fictives | Analyse d'impact sur la protection des données (AIPD) avant de traiter des données réelles |
 | Rôles fictifs (directeur de crise, RSSI, DPO) | Rôles nommés, suppléants, exercices de crise deux fois par an |
 | Hypothèses financières fictives | Analyse d'impact sur l'activité menée avec les métiers et la finance |
 | Gouvernance portée par l'équipe projet | Cadre de risque TIC approuvé par l'organe de direction, comme l'exige DORA (art. 5) |

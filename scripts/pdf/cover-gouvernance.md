@@ -20,17 +20,18 @@ Les 35 tickets communs (Pilotage, Cadrage, Intégration, Livrables) n'ont pas en
 |---|---|---|---|
 | WOR-31 | Matrice de risques EBIOS RM, version initiale | Terminé, validé par les coachs | Partie « EBIOS RM » |
 | WOR-68 | Services critiques et coût d'un arrêt de paiement | Terminé | Partie « Services critiques » |
-| WOR-69 | Analyse NIS2 / DORA | En cours, version 0.1 | Partie « Analyse NIS2 / DORA » |
-| WOR-70 | Objectifs RTO / RPO | En cours, version 0.1 | Partie « Objectifs RTO / RPO » ; temps mesurés attendus des essais (WOR-79) |
-| WOR-71 | PCA / PRA | En cours, version 0.1 | Partie « PCA / PRA » ; à confirmer par les essais (WOR-75, WOR-76, WOR-78) |
-| WOR-72 | Recommandations et arbitrages pour une direction | En cours, version 0.1 | Partie « Recommandations à la direction » |
+| WOR-69 | Analyse NIS2 / DORA | En cours, version 0.2 | Partie « Analyse NIS2 / DORA » |
+| WOR-70 | Objectifs RTO / RPO | En cours, version 0.2 | Partie « Objectifs RTO / RPO » ; temps mesurés attendus des essais (WOR-79) |
+| WOR-71 | PCA / PRA | En cours, version 0.2 | Partie « PCA / PRA » ; à confirmer par les essais (WOR-75, WOR-76, WOR-78) |
+| WOR-72 | Recommandations et arbitrages pour une direction | En cours, version 0.2 | Partie « Recommandations à la direction » |
 | WOR-67 | EBIOS RM complet (ateliers 3 à 5) | Rédigé, à faire valider par les coachs | Partie « EBIOS RM », ateliers 3 à 5 |
-| WOR-73 | Relier EBIOS et PCA/PRA à l'architecture et aux essais | Commencé | Partie « État d'implémentation » ; résultats des essais de mercredi et jeudi à ajouter |
+| WOR-73 | Relier EBIOS et PCA/PRA à l'architecture et aux essais | En cours | Partie « État d'implémentation » (v0.3) ; résultats des essais à ajouter |
 
 ## Décisions en attente avec les autres piliers
 
-- **Avant les essais** : moteur de remédiation, modèle de détection et sauvegarde de la base ne sont pas encore codés ; le WAF est en place mais l'API n'est pas encore derrière lui (partie « État d'implémentation »).
+La gouvernance décrit le code tel qu'il est au 20/10. Les écarts à trancher avec l'équipe :
 
-- **Restauration de la base après une injection** : un snapshot seul fait perdre des transactions confirmées, alors que l'objectif est zéro. Proposition : snapshot puis rejeu des transactions légitimes (Michael, Reza).
-- **Délai de détection compatible avec le Clip Chrono de 60 s** : la collecte passe déjà toutes les 5 s ; reste la détection, entre 20 et 70 s selon le remplissage de la fenêtre de 60 s, à mesurer (Léa).
-- **Règles de l'automate** : deux signaux concordants avant une action destructrice, au plus 3 remédiations en 10 minutes (Michael).
+- **API du socle en mémoire** : un redémarrage ou une restauration efface les transactions. La brancher sur PostgreSQL avant les essais (Reza, Michael).
+- **Restauration automatique après une injection**, sans validation humaine ni second signal : à garder pour la démo, ou à encadrer (équipe).
+- **Modèle de détection** à évaluer sur des fenêtres d'attaque (Léa).
+- **Attaque B** à diriger vers une route `/v1/…` existante (Axel).

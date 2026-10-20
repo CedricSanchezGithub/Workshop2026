@@ -4,11 +4,11 @@
 
 > Ticket : WOR-68 · Responsable : Cédric · Version 0.1 du 19/10/2026
 >
-> Ce document sert d'entrée à l'EBIOS RM (échelle de gravité, voir `ebios-rm.md`), aux objectifs RTO/RPO (WOR-70) et au PCA/PRA (WOR-71).
+> Il fournit l'échelle de gravité de l'EBIOS RM, et sert d'entrée aux objectifs de reprise (`rto-rpo.md`) et au PCA/PRA.
 
 ## Hypothèses sur l'entreprise fictive
 
-Tous les chiffres sont **fictifs**. Ils sont choisis pour donner des ordres de grandeur réalistes à un opérateur de paiement de taille moyenne.
+Chiffres **fictifs**, choisis pour un opérateur de paiement de taille moyenne.
 
 | Paramètre | Valeur retenue | Commentaire |
 |---|---|---|
@@ -45,16 +45,16 @@ La perte directe reste modeste. **Le vrai coût vient des effets de seuil** : la
 | 30 min à 2 h | jusqu'à 36 k€ | Budget SLA mensuel de 43 min dépassé, donc pénalité d'environ 650 k€ ; incident probablement majeur au sens de DORA (critère économique) | ~700 k€ | G3 grave |
 | > 2 h | 36 k€ et plus | Pénalité SLA, incident **majeur au sens de DORA** (notification à l'ACPR), départ estimé de 0,5 % des partenaires (environ 790 k€ par an) | > 1,5 M€ | G4 critique |
 
-> Le seuil DORA de 2 h d'interruption d'un service critique vient des critères de classification des incidents (règlement délégué (UE) 2024/1772). Ce n'est pas le seul critère : dès que la pénalité SLA est déclenchée, l'impact économique dépasse 100 k€ et, avec les partenaires touchés, l'incident devient probablement majeur **dès la tranche 30 min à 2 h**. Le détail est dans `nis2-dora.md` (WOR-69).
+> Le seuil DORA de 2 h vient du règlement délégué (UE) 2024/1772. Mais dès que la pénalité SLA tombe, l'impact économique dépasse 100 k€ : l'incident devient probablement majeur **dès 30 min** (`nis2-dora.md` §3).
 
-**À retenir :** l'arrêt coûte peu tant qu'il dure moins de quelques minutes, puis le coût explose. C'est l'argument central en faveur de la reprise automatique : une reprise manuelle (30 min et plus, d'après le contexte du sujet) fait basculer l'incident en G3, alors qu'une reprise automatique en quelques minutes le maintient en G1.
+**À retenir :** l'arrêt coûte peu pendant quelques minutes, puis le coût explose. Une reprise manuelle (30 min et plus) fait basculer l'incident en G3 ; une reprise automatique en quelques minutes le maintient en G1.
 
 ## Services critiques par ordre de priorité
 
 | Rang | Service | Criticité | Pourquoi | Dégradation acceptable |
 |---|---|---|---|---|
 | 1 | Traitement des transactions (API de paiement et base de données) | **Vitale** | Porte directement le revenu et l'engagement envers les partenaires | Aucune |
-| 2 | Authentification | **Vitale** | Sans elle, aucune transaction ne peut être initiée. Intégrée à l'API, avec des sessions stockées en base : elle tombe avec la base (dans le socle au 20/10, sessions en mémoire, perdues à chaque redémarrage) | Aucune |
+| 2 | Authentification | **Vitale** | Sans elle, aucune transaction ne peut être initiée. Intégrée à l'API : elle tombe avec elle | Aucune |
 | 3 | WAF / point d'entrée | **Vitale** | Point de passage unique de tout le trafic | Un contournement temporaire n'est **pas** acceptable (exposition directe) |
 | 4 | Journalisation et SIEM | Importante | Aucun revenu en jeu, mais elle est indispensable à l'investigation et à la conformité | Arrêt de quelques heures, **sans perte** de journaux |
 | 5 | Consultation de l'historique | Importante | Gêne pour les partenaires, sans perte de revenu | Mode dégradé possible (lecture différée) |
@@ -67,14 +67,4 @@ La perte directe reste modeste. **Le vrai coût vient des effets de seuil** : la
 2. **L'intégrité des transactions déjà validées** : une transaction confirmée ne doit jamais être perdue ni dupliquée. Une transaction perdue coûte bien plus cher qu'une minute d'arrêt (litiges, écritures comptables fausses).
 3. **La conservation des journaux** : sans eux, impossible d'expliquer l'incident au régulateur ni d'améliorer la détection.
 
-## Pistes pour les RTO / RPO
-
-> Objectifs arrêtés, répartition du RTO sur la chaîne de reprise et protocole de mesure : voir `rto-rpo.md` (WOR-70).
-
-| Service | RTO proposé | RPO proposé |
-|---|---|---|
-| Traitement des transactions | ≤ 5 min | 0 (aucune transaction validée perdue) |
-| Authentification | ≤ 5 min | Sans objet : une session perdue oblige seulement à se reconnecter |
-| Journalisation | ≤ 1 h | 0 |
-| Consultation | ≤ 30 min | 0 |
-| Assistant RAG | Meilleur effort | Sans objet |
+Objectifs de reprise par service et protocole de mesure : `rto-rpo.md`.
