@@ -3,9 +3,9 @@
 Ce dossier contient les documents du pilier Gouvernance au format Markdown. Ils ont deux usages :
 
 1. **Base de connaissances de l'assistant RAG** (WOR-56) : l'assistant les indexe pour répondre aux questions des opérateurs pendant un incident.
-2. **Source des fichiers Word** : le dossier de gouvernance et ses parties sont générés à partir d'eux (voir « Générer les .docx »).
+2. **Source des PDF** : le dossier de gouvernance et ses parties sont générés à partir d'eux (voir « Générer les PDF »).
 
-Ces .md sont la **version de référence**. Les .docx sont des copies générées : une modification faite dans un .docx est écrasée à la génération suivante.
+Ces .md sont la **version de référence**. Les PDF sont des copies générées, à ne jamais modifier à la main.
 
 ## À quoi sert l'assistant RAG
 
@@ -51,17 +51,19 @@ L'assistant ne lit pas un document en entier : il récupère des **morceaux**, d
 - **Découpage conseillé** : par titre de niveau 2 ou 3, en gardant le titre du document et le titre de la section dans chaque morceau, pour que l'assistant puisse citer sa source (« d'après `pca-pra.md`, fiche S1 »).
 - **Réindexer** après chaque modification de ces fichiers.
 
-## Générer les .docx
+## Générer les PDF
 
 ```
-cd docs/gouvernance/build
+cd scripts/pdf
 npm install
 npm run build
 ```
 
-Cela produit :
+Le générateur utilise le Chrome ou l'Edge déjà installé (sinon, indiquer son chemin dans `CHROME_PATH`). Il produit, dans `livrables/gouvernance/` :
 
-- `docs/gouvernance/Workshop2026-G6-Gouvernance.docx` : le dossier complet ;
-- `docs/gouvernance/docx/0X-<Partie>.docx` : une partie par fichier (`01-EBIOS-RM.docx`, `05-PCA-PRA.docx`…).
+- `Workshop2026-G6-Gouvernance.pdf` : le dossier complet ;
+- `0X-<Partie>.pdf` : une partie par fichier (`01-EBIOS-RM.pdf`, `05-PCA-PRA.pdf`…).
 
-Pour ajouter un document : créer le .md dans ce dossier, puis l'inscrire dans `parts` de `build/src/config.js`.
+Les PDF sont rangés hors de `docs/` exprès : l'assistant indexe aussi les PDF de `docs/`, ils feraient doublon avec ces .md.
+
+Pour ajouter un document : créer le .md dans ce dossier, puis l'inscrire dans `parts` de `scripts/pdf/src/config.js`.

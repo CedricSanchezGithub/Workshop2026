@@ -1,0 +1,51 @@
+/* Charte des dossiers PDF : A4, marges de 2 cm (posées par chrome.js) */
+:root {
+  --dark: #261E48;   /* titres */
+  --mid: #4A4470;    /* sous-titres, citations */
+  --line: #A1A6D4;   /* bordures */
+  --fill: #E4E6F3;   /* en-têtes de tableau */
+}
+
+html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+body {
+  font-family: Calibri, Carlito, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  font-size: 10.5pt;
+  line-height: 1.35;
+  color: #1a1a1a;
+  margin: 0;
+}
+
+/* Page de garde */
+.title { font-size: 22pt; font-weight: 700; color: var(--dark); margin: 0 0 4pt; }
+.subtitle { font-size: 12pt; font-style: italic; color: var(--mid); margin: 0 0 20pt; }
+
+/* Chaque partie d'un dossier commence sur une nouvelle page */
+.part { break-before: page; }
+
+h1, h2, h3 { color: var(--dark); break-after: avoid; }
+h1 { font-size: 16pt; margin: 18pt 0 8pt; }
+h2 { font-size: 13pt; margin: 14pt 0 6pt; }
+h3 { font-size: 11pt; margin: 10pt 0 5pt; color: var(--mid); }
+p { margin: 0 0 6pt; }
+ul, ol { margin: 0 0 6pt; padding-left: 18pt; }
+li { margin-bottom: 3pt; }
+
+blockquote {
+  margin: 0 0 8pt;
+  padding: 2pt 0 2pt 10pt;
+  border-left: 3pt solid var(--line);
+  color: var(--mid);
+  font-style: italic;
+}
+blockquote p:last-child { margin-bottom: 0; }
+
+code { font-family: Menlo, Consolas, monospace; font-size: 9pt; }
+pre { background: var(--fill); padding: 6pt; white-space: pre-wrap; font-size: 9pt; break-inside: avoid; }
+
+table { width: 100%; border-collapse: collapse; margin: 4pt 0 10pt; font-size: 9pt; }
+thead { display: table-header-group; } /* en-tête répété sur chaque page */
+tr { break-inside: avoid; }
+th, td { border: 0.75pt solid var(--line); padding: 3pt 5pt; text-align: left; vertical-align: top; }
+th { background: var(--fill); }
+
+.id { white-space: nowrap; }
