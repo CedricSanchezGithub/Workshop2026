@@ -20,8 +20,8 @@ câbler la persistance Postgres + Vault (WOR-33) et intégrer le frontend/worker
 ## Organisation
 
 ```text
+node_modules/                  # dépendances du workspace (installées par npm ci)
 front/                         # application React + Vite
-  node_modules/                # dépendances frontend et outils du workspace
   tests/                       # tests métier et structurels
   dist/                        # build frontend généré
 backend/
@@ -49,6 +49,12 @@ npm run api:dev
 ```
 
 L'interface est disponible sur `http://localhost:5173` et l'API sur `http://localhost:4000`.
+
+Le worker de paiement exige une file PostgreSQL : sans `QUEUE_DRIVER=postgres`, `npm run worker:start` s'arrête immédiatement. Avec le PostgreSQL de la stack Docker (port `55432`) :
+
+```bash
+QUEUE_DRIVER=postgres DATABASE_URL=postgres://payandgo:payandgo@127.0.0.1:55432/payandgo npm run worker:start
+```
 
 ## Démarrage Docker
 
