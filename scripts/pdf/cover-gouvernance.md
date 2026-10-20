@@ -24,7 +24,7 @@ Les 35 tickets communs (Pilotage, Cadrage, Intégration, Livrables) n'ont pas en
 | WOR-70 | Objectifs RTO / RPO | En cours, version 0.1 | Partie « Objectifs RTO / RPO » ; temps mesurés attendus des essais (WOR-79) |
 | WOR-71 | PCA / PRA | En cours, version 0.1 | Partie « PCA / PRA » ; à confirmer par les essais (WOR-75, WOR-76, WOR-78) |
 | WOR-72 | Recommandations et arbitrages pour une direction | En cours, version 0.1 | Partie « Recommandations à la direction » |
-| WOR-67 | EBIOS RM complet (ateliers 3 à 5) | À faire | Débloqué par le code de la plateforme ; vulnérabilités relevées dans la partie « État d'implémentation » |
+| WOR-67 | EBIOS RM complet (ateliers 3 à 5) | Rédigé, à faire valider par les coachs | Partie « EBIOS RM », ateliers 3 à 5 |
 | WOR-73 | Relier EBIOS et PCA/PRA à l'architecture et aux essais | Commencé | Partie « État d'implémentation » ; résultats des essais de mercredi et jeudi à ajouter |
 
 ## Décisions en attente avec les autres piliers
