@@ -33,6 +33,7 @@ loki_logged_services:
   - socket-proxy
   - alloy
   - waf
+  - payment-api
 
 # Fichiers de configuration montés dans chaque service (chemins relatifs à infra/) :
 # deploy.yml redémarre le service si l'un d'eux est plus récent que son conteneur.

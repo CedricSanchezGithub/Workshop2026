@@ -264,6 +264,41 @@ services:
           cpus: "0.5"
           memory: 384M
 
+  # API métier de paiement (WOR-35) : derrière le WAF, sur le réseau backend interne.
+  # Expose /metrics (Prometheus) et des logs JSON sur stdout (Loki) — contrat WOR-29/WOR-37.
+  payment-api:
+    <<: *hardening
+    build:
+      context: ../services/payment-api
+    image: resilience-alpha/payment-api:dev
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_DB: ${POSTGRES_DB:?POSTGRES_DB manquant dans .env}
+      POSTGRES_USER: ${POSTGRES_USER:?POSTGRES_USER manquant dans .env}
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres/password
+    volumes:
+      - secrets-postgres:/run/secrets/postgres:ro
+    networks:
+      - backend      # accès à postgres + reçoit le trafic du WAF
+      - monitoring   # Prometheus scrape /metrics
+    cap_drop: [ALL]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      vault-agent:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8080/health',timeout=3).status==200 else 1)"]
+      interval: 10s
+      timeout: 4s
+      retries: 10
+      start_period: 40s
+    deploy:
+      resources:
+        limits:
+          cpus: "0.75"
+          memory: 256M
+
   # WAF applicatif (WOR-60) : ModSecurity + OWASP CRS en reverse-proxy devant l'API/le front.
   # Point d'entrée publié unique de l'application ; bloque les injections (règles CRS 942xxx)
   # AVANT d'atteindre le backend, et journalise chaque blocage en JSON sur stdout —
