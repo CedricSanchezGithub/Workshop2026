@@ -50,6 +50,8 @@ config_watch:
 # Remédiation automatique (WOR-38/39) — playbooks de ansible/playbooks/remediation/,
 # seuls autorisés pour le moteur de remédiation (services/remediation).
 remediation_blocklist: "{{ infra_dir }}/waf/remediation/blocked-ips.txt"
+# Clé HMAC des alertes détecteur -> moteur (lue par services/remediation, montée dans ml-inference)
+remediation_hmac_key: "{{ vault_secrets_dir }}/remediation/hmac_key"
 # Adresse de documentation (RFC 5737) gardée en permanence : la liste n'est jamais vide.
 remediation_blocklist_placeholder: 192.0.2.255
 # Services que le moteur peut redémarrer ou recréer (liste fermée).

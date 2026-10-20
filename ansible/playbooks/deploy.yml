@@ -60,6 +60,23 @@
     - name: Initialiser, desceller et configurer Vault
       ansible.builtin.include_tasks: tasks/vault-bootstrap.yml
 
+    # Clé HMAC partagée détecteur -> moteur de remédiation (WOR-38/53) : seules les alertes signées
+    # déclenchent une action. Fichier hors Git (secrets/), dossier 0700 ; monté en lecture seule
+    # dans ml-inference (*_FILE), lu directement par le moteur sur l'hôte. Jamais régénérée.
+    - name: Créer le dossier des secrets de la remédiation
+      ansible.builtin.file:
+        path: "{{ remediation_hmac_key | dirname }}"
+        state: directory
+        mode: "0700"
+
+    - name: Générer la clé HMAC de la remédiation si elle n'existe pas
+      ansible.builtin.copy:
+        dest: "{{ remediation_hmac_key }}"
+        content: "{{ lookup('ansible.builtin.password', '/dev/null', length=64, chars=['ascii_letters', 'digits']) }}"
+        mode: "0644"
+        force: false
+      no_log: true
+
     # Le WAF refuse de démarrer si la liste de blocage de la remédiation (WOR-38) est absente
     # (ignorée par Git) : on la crée avec sa seule adresse de documentation.
     - name: Créer la liste de blocage du WAF si elle n'existe pas
