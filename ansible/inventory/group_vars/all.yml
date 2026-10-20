@@ -28,6 +28,7 @@ loki_logged_services:
   - prometheus
   - loki
   - grafana
+  - payment-api
   - vault
   - vault-agent
   - socket-proxy
@@ -57,3 +58,5 @@ remediation_blocklist_placeholder: 192.0.2.255
 # Services que le moteur peut redémarrer ou recréer (liste fermée).
 remediation_services:
   - payment-api
+# Port du moteur de remédiation et du dashboard (127.0.0.1 + passerelle Docker uniquement)
+remediation_port: 8090

@@ -94,5 +94,15 @@
         wait: true
         wait_timeout: "{{ compose_wait_timeout }}"
 
+    # Moteur de remédiation + dashboard (WOR-38/40) : processus de l'hôte, idempotent (ne fait rien
+    # s'il tourne déjà). Il n'agit sur la stack qu'au travers de playbooks/remediation/.
+    - name: Démarrer le moteur de remédiation
+      ansible.builtin.command:
+        cmd: "{{ (inventory_dir ~ '/../../scripts/start-remediation.sh') | realpath }} start"
+      environment:
+        ANSIBLE_PLAYBOOK: "{{ ansible_playbook_python | dirname }}/ansible-playbook"
+      register: engine_start
+      changed_when: "'Démarrage du moteur' in engine_start.stdout"
+
 - name: Vérifier la plateforme
   ansible.builtin.import_playbook: verify.yml

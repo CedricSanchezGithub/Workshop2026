@@ -146,6 +146,13 @@
       retries: 20
       delay: 3
 
+    - name: Vérifier la chaîne de reprise autonome (WAF, détection ML, moteur, transaction de test)
+      ansible.builtin.include_tasks:
+        file: tasks/verify-remediation.yml
+        apply:
+          tags: [remediation]
+      tags: [remediation]
+
     - name: Résumé
       ansible.builtin.debug:
         msg:
@@ -155,3 +162,4 @@
           - "Vault      : {{ vault_addr }}/ui (jeton root dans infra/secrets/vault-init.json)"
           - "Prometheus : http://127.0.0.1:9090"
           - "Loki       : http://127.0.0.1:3100"
+          - "Supervision (moteur de remédiation) : http://127.0.0.1:{{ remediation_port }}"
