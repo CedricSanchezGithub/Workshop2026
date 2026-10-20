@@ -2,7 +2,7 @@
 
 > **Statut : cible.** Ce document décrit ce que l'équipe vise et a décidé, pas ce qui est déjà codé. L'état réel du code est suivi dans `constat/etat-implementation.md`.
 
-> Ticket : WOR-31 · Responsable : Cédric · Version 0.1 du 19/10/2026, à valider par les coachs
+> Ticket : WOR-31 · Responsable : Cédric · Version 0.1 du 19/10/2026, **validée par les coachs** (WOR-32)
 >
 > Cette version couvre les **ateliers 1 et 2**. Les ateliers 3 à 5 (scénarios stratégiques et opérationnels, traitement du risque) seront faits dans WOR-67, une fois l'architecture (WOR-27) et le scénario d'attaque (WOR-29) arrêtés.
 
@@ -125,7 +125,11 @@ Vraisemblance provisoire : **V1** peu vraisemblable · **V2** vraisemblable · *
 
 ---
 
-## À valider avec les coachs (WOR-32)
+## Validation par les coachs (WOR-32)
+
+La version initiale (ateliers 1 et 2) a été validée par les coachs. Remarques éventuelles des coachs : à reporter ici.
+
+Points qui leur ont été soumis :
 
 1. Le périmètre des valeurs métier : faut-il garder VM6 (la capacité de reprise) comme valeur métier, ou seulement comme bien support ?
 2. Les sources de risque écartées (SR5 et SR6) et leur justification.

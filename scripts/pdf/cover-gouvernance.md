@@ -18,7 +18,7 @@ Les 35 tickets communs (Pilotage, Cadrage, Intégration, Livrables) n'ont pas en
 
 | Ticket | Sujet | Statut | Livrable |
 |---|---|---|---|
-| WOR-31 | Matrice de risques EBIOS RM, version initiale | En cours, à valider par les coachs | Partie « EBIOS RM » |
+| WOR-31 | Matrice de risques EBIOS RM, version initiale | Terminé, validé par les coachs | Partie « EBIOS RM » |
 | WOR-68 | Services critiques et coût d'un arrêt de paiement | Terminé | Partie « Services critiques » |
 | WOR-69 | Analyse NIS2 / DORA | En cours, version 0.1 | Partie « Analyse NIS2 / DORA » |
 | WOR-70 | Objectifs RTO / RPO | En cours, version 0.1 | Partie « Objectifs RTO / RPO » ; temps mesurés attendus des essais (WOR-79) |
