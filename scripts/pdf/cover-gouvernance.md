@@ -14,20 +14,22 @@ Chaque pilier a un responsable. Les décisions d'architecture restent prises ens
 
 Les 35 tickets communs (Pilotage, Cadrage, Intégration, Livrables) n'ont pas encore de responsable.
 
-## Avancement du pilier Gouvernance au 19/10/2026
+## Avancement du pilier Gouvernance au 20/10/2026
 
 | Ticket | Sujet | Statut | Livrable |
 |---|---|---|---|
-| WOR-31 | Matrice de risques EBIOS RM, version initiale | En cours, à valider par les coachs | Partie « EBIOS RM » |
-| WOR-68 | Services critiques et coût d'un arrêt de paiement | En cours | Partie « Services critiques » |
+| WOR-31 | Matrice de risques EBIOS RM, version initiale | Terminé, validé par les coachs | Partie « EBIOS RM » |
+| WOR-68 | Services critiques et coût d'un arrêt de paiement | Terminé | Partie « Services critiques » |
 | WOR-69 | Analyse NIS2 / DORA | En cours, version 0.1 | Partie « Analyse NIS2 / DORA » |
 | WOR-70 | Objectifs RTO / RPO | En cours, version 0.1 | Partie « Objectifs RTO / RPO » ; temps mesurés attendus des essais (WOR-79) |
 | WOR-71 | PCA / PRA | En cours, version 0.1 | Partie « PCA / PRA » ; à confirmer par les essais (WOR-75, WOR-76, WOR-78) |
 | WOR-72 | Recommandations et arbitrages pour une direction | En cours, version 0.1 | Partie « Recommandations à la direction » |
-| WOR-67 | EBIOS RM complet (ateliers 3 à 5) | À faire | Attend l'architecture (WOR-27) |
-| WOR-73 | Relier EBIOS et PCA/PRA à l'architecture et aux essais | À faire | Après les essais de mercredi et jeudi |
+| WOR-67 | EBIOS RM complet (ateliers 3 à 5) | À faire | Débloqué par le code de la plateforme ; vulnérabilités relevées dans la partie « État d'implémentation » |
+| WOR-73 | Relier EBIOS et PCA/PRA à l'architecture et aux essais | Commencé | Partie « État d'implémentation » ; résultats des essais de mercredi et jeudi à ajouter |
 
 ## Décisions en attente avec les autres piliers
+
+- **Avant les essais** : moteur de remédiation, modèle de détection et sauvegarde de la base ne sont pas encore codés ; le WAF est en place mais l'API n'est pas encore derrière lui (partie « État d'implémentation »).
 
 - **Restauration de la base après une injection** : un snapshot seul fait perdre des transactions confirmées, alors que l'objectif est zéro. Proposition : snapshot puis rejeu des transactions légitimes (Michael, Reza).
 - **Délai de détection compatible avec le Clip Chrono de 60 s** : la collecte passe déjà toutes les 5 s ; reste la détection, entre 20 et 70 s selon le remplissage de la fenêtre de 60 s, à mesurer (Léa).

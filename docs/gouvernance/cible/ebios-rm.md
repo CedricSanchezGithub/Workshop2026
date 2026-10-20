@@ -1,6 +1,8 @@
 # EBIOS RM — Matrice de risques (version initiale)
 
-> Ticket : WOR-31 · Responsable : Cédric · Version 0.1 du 19/10/2026, à valider par les coachs
+> **Statut : cible.** Ce document décrit ce que l'équipe vise et a décidé, pas ce qui est déjà codé. L'état réel du code est suivi dans `constat/etat-implementation.md`.
+
+> Ticket : WOR-31 · Responsable : Cédric · Version 0.1 du 19/10/2026, **validée par les coachs** (WOR-32)
 >
 > Cette version couvre les **ateliers 1 et 2**. Les ateliers 3 à 5 (scénarios stratégiques et opérationnels, traitement du risque) seront faits dans WOR-67, une fois l'architecture (WOR-27) et le scénario d'attaque (WOR-29) arrêtés.
 
@@ -25,14 +27,14 @@
 | VM5 | Traçabilité : journaux et preuves d'audit | Information | RSSI / Conformité |
 | VM6 | Capacité de détection et de reprise automatique | Processus | Direction de la production |
 
-### 1.2 Biens supports (provisoires, à aligner sur WOR-27)
+### 1.2 Biens supports
 
 | ID | Bien support | Valeurs métier portées |
 |---|---|---|
 | BS1 | Front web de paiement | VM1, VM2 |
-| BS2 | API métier de paiement | VM1, VM2, VM4 |
-| BS3 | Service d'authentification | VM3 |
-| BS4 | Base de données (comptes, transactions) | VM1, VM4 |
+| BS2 | API métier de paiement (Node.js, `app/backend/`) | VM1, VM2, VM4 |
+| BS3 | Authentification : sessions stockées en base, intégrée à l'API (pas de service séparé au 20/10) | VM3 |
+| BS4 | Base PostgreSQL (utilisateurs, sessions, intentions de paiement) | VM1, VM4 |
 | BS5 | WAF / reverse proxy | VM1, VM2, VM3 |
 | BS6 | Stack d'observabilité (Prometheus, Loki, Grafana) et SIEM | VM5, VM6 |
 | BS7 | Service d'inférence ML (détection d'anomalies) | VM6 |
@@ -43,6 +45,8 @@
 | BS12 | Dépôt Git et procédure de déploiement | VM6 |
 
 > **Point d'attention :** BS8 (le moteur de remédiation) a des droits élevés sur tous les conteneurs. C'est le bien support le plus sensible du dispositif (voir ER6).
+>
+> **Alignement sur le code (20/10) :** BS7 (inférence ML) et BS8 (remédiation) ne sont pas encore codés. BS5 (WAF) est déployé dans le socle, mais l'API n'est pas encore derrière lui. Les vulnérabilités relevées dans le code (port de la base publié, secrets en clair, code de vérification renvoyé par l'API, appel à OpenAI) sont listées dans `constat/etat-implementation.md` §3 et seront traitées dans les ateliers 3 à 5 (WOR-67).
 
 ### 1.3 Événements redoutés
 
@@ -121,7 +125,11 @@ Vraisemblance provisoire : **V1** peu vraisemblable · **V2** vraisemblable · *
 
 ---
 
-## À valider avec les coachs (WOR-32)
+## Validation par les coachs (WOR-32)
+
+La version initiale (ateliers 1 et 2) a été validée par les coachs. Remarques éventuelles des coachs : à reporter ici.
+
+Points qui leur ont été soumis :
 
 1. Le périmètre des valeurs métier : faut-il garder VM6 (la capacité de reprise) comme valeur métier, ou seulement comme bien support ?
 2. Les sources de risque écartées (SR5 et SR6) et leur justification.
