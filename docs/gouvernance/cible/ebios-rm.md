@@ -129,15 +129,17 @@ Vraisemblance provisoire : **V1** peu vraisemblable · **V2** vraisemblable · *
 
 ### 3.1 Écosystème
 
-Les parties prenantes par lesquelles une attaque peut passer. Exposition : **faible**, **moyenne**, **forte**, selon l'accès dont elles disposent et la confiance qu'on leur accorde.
+Les parties prenantes par lesquelles une attaque peut passer. Chaque critère est coté de 1 (faible) à 4 (fort). **Menace = (dépendance × pénétration) / (maturité cyber × confiance)** ; au-delà de 2, la partie prenante est jugée critique. Les cotes sont des estimations pour l'entreprise fictive.
 
-| ID | Partie prenante | Accès au système | Exposition |
-|---|---|---|---|
-| PP1 | Partenaires commerçants (200) et utilisateurs finaux | API publiée derrière le WAF, comptes utilisateurs | Forte : accès légitime, gros volumes |
-| PP2 | Autres postes du réseau `RESILIENCE-G6` | Ports publiés de l'hôte : WAF (8080), base de l'application (55432) | Forte : même réseau, aucun filtrage en amont |
-| PP3 | Exploitants (équipe projet) | Comptes de l'hôte, droits Docker, Vault, dépôt Git | Forte : droits élevés, peu cloisonnés |
-| PP4 | Prestataires TIC : OpenAI, registres d'images, dépendances npm et Python | Appels sortants, code tiers exécuté dans les conteneurs | Moyenne |
-| PP5 | Service d'inférence ML | Clé HMAC qui autorise les ordres au moteur de remédiation | Moyenne : composant interne, mais qui commande le plus sensible |
+| ID | Partie prenante | Accès au système | Dép. | Pén. | Mat. | Conf. | Menace |
+|---|---|---|---|---|---|---|---|
+| PP1 | Partenaires commerçants (200) et utilisateurs finaux | API derrière le WAF, comptes clients | 4 | 2 | 1 | 1 | **8** critique |
+| PP2 | Autres postes du réseau `RESILIENCE-G6` | Ports exposés de l'hôte : WAF (8080), base de l'application (55432) | 1 | 3 | 1 | 1 | **3** critique |
+| PP3 | Exploitants (équipe projet) | Comptes de l'hôte, droits Docker, Vault, dépôt Git | 4 | 4 | 2 | 3 | **2,7** critique |
+| PP5 | Service d'inférence ML | Clé HMAC qui autorise les ordres au moteur de remédiation | 4 | 3 | 2 | 3 | **2** critique |
+| PP4 | Prestataires TIC : OpenAI, registres d'images, dépendances npm et Python | Appels sortants, code tiers exécuté dans les conteneurs | 2 | 2 | 3 | 2 | 0,7 |
+
+Mesures sur l'écosystème : filtrage et blocage des clients au WAF (PP1, PP2), signature des alertes (PP5), registre des prestataires TIC (PP4, REC-11). Le cloisonnement des exploitants (PP3) n'est pas traité dans le prototype.
 
 ### 3.2 Scénarios stratégiques
 
@@ -145,58 +147,78 @@ Les parties prenantes par lesquelles une attaque peut passer. Exposition : **fai
 |---|---|---|---|---|
 | SS1 | SR2 hacktiviste → nuire à l'image | Depuis le réseau (PP2) ou en se faisant passer pour des clients (PP1), saturer l'API | ER1 paiements indisponibles | G4 |
 | SS2 | SR1 cybercriminel → gain financier | Compte client (PP1) → injection dans l'API → transactions modifiées | ER2 transactions altérées | G4 |
-| SS3 | SR1 cybercriminel → revente de données | Réseau (PP2) → base de l'application publiée | ER3 fuite de données | G3 |
+| SS3 | SR1 cybercriminel → revente de données | Réseau (PP2) → base de l'application exposée | ER3 fuite de données | G3 |
 | SS4 | SR3 initié → sabotage | Droits d'exploitant (PP3) ou service d'inférence compromis (PP5) → ordres au moteur de remédiation | ER6 défense détournée, puis ER1 et ER2 | G4 |
 | SS5 | SR4 opportuniste → fraude | Comptes clients (PP1) → bourrage d'identifiants → paiements | ER4 usurpation | G3 |
 | SS6 | SR3 initié → effacer ses traces | Droits d'exploitant (PP3) → remise à l'état sain ou purge de Loki | ER5 journaux perdus | G3 |
 
 ## Atelier 4 — Scénarios opérationnels
 
-Chaque scénario suit les composants réels du démonstrateur (relevés dans `constat/etat-implementation.md`). La vraisemblance tient compte des mesures **déjà codées**.
+Chaque scénario suit les composants réels du démonstrateur (`constat/etat-implementation.md`). La vraisemblance tient compte des mesures **déjà codées**.
 
 | Scénario | Étapes de l'attaque | Ce qui la freine aujourd'hui | Vraisemblance |
 |---|---|---|---|
-| **SO1** (SS1, R1) Déni de service | 1. Rafale de requêtes depuis le PC Attaquant vers le WAF (port 8080) · 2. L'API, limitée à 0,75 CPU, sature ou renvoie des erreurs · 3. Les paiements légitimes échouent | Limite de 60 requêtes par minute et par client (`main.ts`) ; détection ML puis blocage en 403 des sources à plus de 20 % du trafic ; redémarrage si besoin | **V3** depuis une source unique (outil public). Une attaque répartie sur de nombreuses IP, chacune sous 20 %, échappe au blocage |
-| **SO2** (SS2, R2) Injection | 1. Requêtes avec motifs d'injection vers une route `/v1/…` · 2. Une variante passe le WAF · 3. Elle atteint le stockage de l'API | OWASP CRS bloquant : 9 vecteurs sur 10 en 403 ; détection de la famille `injection` ; blocage de la source | **V1** : le WAF arrête presque tout, et dans le socle l'API n'a pas de base à atteindre |
-| **SO3** (SS4, R3) Détournement de la remédiation | 1. Accès à l'hôte, ou compromission du service d'inférence qui détient la clé HMAC · 2. Alerte `sqli` forgée et signée · 3. Le moteur restaure sans validation humaine : toutes les transactions sont effacées ; ou il bloque des IP légitimes | Signature HMAC, refus des alertes anciennes ou rejouées, liste fermée de playbooks, IP de l'hôte jamais bloquées, écoute locale | **V2** : la clé et les droits Docker sont sur l'hôte, sans cloisonnement entre exploitants |
-| **SO4** (SS3, R5) Exfiltration | 1. Depuis le réseau, connexion au port 55432 · 2. Mot de passe lu dans le dépôt public · 3. Copie de la base | Aucune, si le déploiement `app/` tourne | **V3** : trivial. Sans objet pour le socle, qui ne publie que le WAF |
+| **SO1** (SS1, R1) Déni de service | 1. Rafale de requêtes depuis le PC Attaquant vers le WAF (port 8080) · 2. L'API, limitée à 0,75 CPU, sature ou renvoie des erreurs · 3. Les paiements légitimes échouent | Limite de 60 requêtes par minute et par client ; détection ML, puis blocage en 403 des IP qui pèsent au moins 20 % parmi les 5 plus actives ; redémarrage si besoin | **V3** : outil public. Une attaque répartie sur beaucoup d'IP perd 5 sources par alerte, mais les autres continuent |
+| **SO2** (SS2, R2) Injection | 1. Requêtes avec motifs d'injection vers une route `/v1/…` · 2. Une variante passe le WAF · 3. Elle atteint le stockage de l'API | OWASP CRS bloquant : 9 vecteurs sur 10 en 403 ; détection de la famille `injection` ; blocage de la source | **V1** : le WAF arrête presque tout, et l'API du socle n'a pas de base. Réserve : l'attaque B vise encore `/api/pay`, qui n'existe pas ; le chemin jusqu'à l'API n'a pas été essayé |
+| **SO3a** (SS4, R3) Restauration abusive | 1. Accès à l'hôte, ou compromission du service d'inférence, qui détient la clé HMAC · 2. Alerte `sqli` forgée et signée · 3. Le moteur restaure sans validation humaine : toutes les transactions sont effacées | Signature HMAC, refus des alertes anciennes ou rejouées, liste fermée de playbooks, écoute sur la loopback et la passerelle Docker (jamais sur le réseau) | **V2** : la clé et les droits Docker sont sur l'hôte, sans cloisonnement entre exploitants |
+| **SO3b** (SS4, R3) Blocage de clients légitimes | Même accès · alerte `dos` forgée avec les IP des partenaires | Les IP de l'hôte ne sont jamais bloquées ; rien ne protège celles des partenaires | **V2** |
+| **SO4** (SS3, R5) Exfiltration | 1. Depuis le réseau, connexion au port 55432 · 2. Mot de passe lu dans le dépôt · 3. Copie de la base | Aucune, si le déploiement `app/` tourne | **V3** : trivial. Sans objet pour le socle, qui n'expose que le WAF au réseau |
 | **SO5** (SS5, R4) Usurpation | 1. Essais d'identifiants sur `/v1/auth/login` · 2. Session obtenue · 3. Paiement validé avec le code renvoyé par l'API (`demoCode`) | 12 essais par 15 min et par client ; pas de verrouillage de compte | **V2** : freiné, mais la vérification du paiement ne protège rien |
 | **SO6** (SS6, R6) Effacement des journaux | 1. Exploitant malveillant sur l'hôte · 2. Remise à l'état sain ou purge des volumes · 3. Les journaux de Loki disparaissent | Export des journaux avec empreintes (`scripts/export-logs.sh`), mais à lancer à la main | **V2** |
 
-R7 (rançongiciel sur l'hôte, V1) et R8 (saturation de la consultation, même chemin que SO1) ne sont pas détaillés : leur traitement découle de SO1 et du risque résiduel « hôte unique ».
+R7 (rançongiciel, V1) et R8 (même chemin que SO1) ne sont pas détaillés.
 
 ## Atelier 5 — Traitement du risque
 
+Règle des niveaux, identique à la matrice initiale : 🔴 si G4 et V2 ou plus ; 🟠 si G4·V1, ou G3 et V2 ou plus ; 🟡 sinon.
+
 ### 5.1 Mesures et risque résiduel
 
-« En place » renvoie au code relevé dans le constat. « Complémentaire » est une mesure à ajouter, dans le démonstrateur si elle est marquée **démo**, sinon dans un contexte industriel (`recommandations.md`).
+**Démo** = mesure à faire avant les essais ; sinon, mesure pour un contexte industriel (`recommandations.md`).
 
-| Risque | Mesures en place | Mesures complémentaires | Résiduel |
-|---|---|---|---|
-| R1 déni de service | Limite par client, blocage au WAF, redémarrage vérifié par une transaction | **Démo :** levée automatique des blocages. Industriel : protection en amont contre les attaques réparties (REC-10) | G2 · V2 🟡 |
-| R2 injection | WAF CRS bloquant, détection, blocage, retour à l'état sain | **Démo :** base PostgreSQL et sauvegarde avant essai. Industriel : correction du code, restauration à un instant précis (REC-6) | G3 · V1 🟡 |
-| R3 remédiation détournée | Signature HMAC, liste fermée, garde-fous, écoute locale | **Démo :** moteur en conteneur sans droits Docker complets. Industriel : validation humaine des restaurations, deux signaux (REC-2, REC-3) | G4 · V2 🔴 |
-| R4 usurpation | Limite de 12 essais par 15 min | **Démo :** ne plus renvoyer le code de vérification. Industriel : verrouillage progressif, MFA (la reconnaissance faciale existe pour le back-office) | G3 · V1 🟡 |
-| R5 exfiltration | Socle : seul le WAF est publié | **Démo :** fermer le port 55432, secrets de l'application dans Vault | G3 · V1 🟡 |
-| R6 journaux | Export avec empreintes, Loki 7 jours | **Démo :** export appelé avant toute remise à l'état sain. Industriel : journaux hors de l'hôte, immuables | G3 · V1 🟡 |
-| R7 rançongiciel | Aucune | Industriel : sauvegardes hors site et immuables, deuxième site (REC-5, REC-9) | G4 · V1 🟠 |
-| R8 consultation | Même chaîne que R1 | — | G2 · V2 🟡 |
+| Risque | Mesures en place | Résiduel actuel | Mesures complémentaires | Résiduel visé |
+|---|---|---|---|---|
+| R1 déni de service | Limite par client, blocage au WAF, redémarrage vérifié par une transaction | G2·V2 🟡, sous réserve du RTO mesuré (WOR-79) ; un partenaire bloqué à tort le reste jusqu'à une action manuelle | **Démo :** levée automatique des blocages. Industriel : protection en amont (REC-10) | G2·V2 🟡 |
+| R2 injection | WAF CRS bloquant, détection, blocage, retour à l'état sain | G4·V1 🟠 : la restauration efface toutes les transactions | **Démo :** API sur PostgreSQL, sauvegarde avant essai, attaque B recâblée. Industriel : correction du code, restauration à un instant précis (REC-6) | G3·V1 🟡 avec REC-6 |
+| R3 remédiation détournée | Signature HMAC, liste fermée, garde-fous, écoute hors réseau | G4·V2 🔴 | **Démo :** moteur en conteneur, sans droits Docker complets. Industriel : REC-2, REC-3, REC-4 | G4·V1 🟠 |
+| R4 usurpation | Limite de 12 essais par 15 min | G3·V2 🟠 | **Démo :** ne plus renvoyer le code de vérification. Industriel : verrouillage progressif, MFA (la reconnaissance faciale est prête, pas encore branchée) | G3·V1 🟡 |
+| R5 exfiltration | Socle : seul le WAF est exposé au réseau | G3·V3 🟠 si `app/` tourne | **Démo :** fermer le port 55432, secrets de l'application dans Vault | G3·V1 🟡 |
+| R6 journaux | Export avec empreintes, Loki 7 jours | G3·V2 🟠 | **Démo :** export appelé avant toute restauration ou remise à l'état sain. Industriel : journaux hors de l'hôte, immuables | G3·V1 🟡 |
+| R7 rançongiciel | Aucune | G4·V1 🟠 | Industriel : sauvegardes hors site, deuxième site (REC-5, REC-9) | G4·V1 🟠 |
+| R8 consultation | Même chaîne que R1 | G2·V2 🟡 | — | G2·V2 🟡 |
 
 ### 5.2 Cartographie du risque résiduel
 
 | Gravité \ Vraisemblance | V1 | V2 | V3 | V4 |
 |---|---|---|---|---|
-| **G4** | R7 | **R3** | | |
-| **G3** | R2, R4, R5, R6 | | | |
+| **G4** | R2, R7 | **R3** | | |
+| **G3** | | R4, R6 | R5 | |
 | **G2** | | R1, R8 | | |
-| **G1** | | | | |
 
-### 5.3 Ce qu'il faut retenir
+*Actuel.* Une fois les mesures « démo » faites : R3 passe en G4·V1, R4, R5 et R6 en G3·V1.
 
-- **R1, le scénario de la démo, passe de 🔴 à 🟡** grâce à la chaîne détection → blocage → vérification. C'est ce que les essais doivent prouver (RTO mesuré, `rto-rpo.md`).
-- **R3 reste le seul risque élevé.** Le moteur de remédiation est à la fois la mesure qui fait baisser R1 et R2, et le bien le plus dangereux s'il est détourné : il peut effacer toutes les transactions sur une seule alerte. C'est le risque à accepter explicitement, ou à traiter en priorité.
-- **R2, R4, R5 et R6 ne descendent en V1 que si les mesures marquées « démo » sont faites** avant les essais. Sinon, R5 reste en V3 (port 55432) et R4 en V2.
-- **R7 est accepté** pour le prototype : hôte unique, sans sauvegarde hors site. C'est la limite principale à présenter à la direction.
+### 5.3 Acceptation du risque résiduel
+
+| Risque | Décision | Par qui | Jusqu'à quand |
+|---|---|---|---|
+| R3 | Accepté pour la démo : la restauration automatique sans validation humaine est un choix de démonstration | Direction générale (fictive), à la présentation finale | Mise en production, qui exige REC-2, REC-3 et REC-4 |
+| R2 | Accepté : perte des transactions à chaque restauration | Idem | Mise en place de REC-6 |
+| R7 | Accepté : hôte unique, sans sauvegarde hors site | Idem | Mise en place de REC-5 et REC-9 |
+| R1, R8 | Accepté en G2, si le RTO mesuré le confirme | Idem | Revue après les essais (WOR-79) |
+
+### 5.4 Plan d'amélioration
+
+| Mesure | Risques | Responsable | Échéance | Comment on le vérifie |
+|---|---|---|---|---|
+| API du socle sur PostgreSQL, `pg_dump` avant chaque essai | R2, RPO | Reza, Michael | Avant les essais | Comptage des transactions avant et après restauration (WOR-75) |
+| Attaque B sur une route `/v1/…` | R2 | Axel | Avant les essais | Répétitions (WOR-78) |
+| Modèle évalué sur des fenêtres d'attaque | R1, R2, R3 | Léa | Avant les essais | Rapport d'entraînement : taux et délai de détection (WOR-52) |
+| Code de vérification non renvoyé | R4 | Michael | Avant les essais | Appel à l'API |
+| Port 55432 fermé, secrets de l'application dans Vault | R5 | Axel | Avant les essais | Scan de ports depuis le PC Attaquant |
+| Export des journaux avant restauration et remise à l'état sain | R6 | Michael, Reza | Avant les essais | Dossier de preuves après chaque essai |
+| Levée automatique des blocages | R1 | Michael | Fin du workshop | Chaos engineering (WOR-76) |
+| Moteur en conteneur, droits limités | R3 | Michael, Axel | Fin du workshop | Revue des droits (WOR-64) |
+| REC-2 à REC-6, REC-9 à REC-11 | Tous | Direction (fictive) | 6 à 12 mois | Voir `recommandations.md` |
 
 ---
 
