@@ -9,8 +9,8 @@ services:
       context: ..            # docs/gouvernance : le site est construit à partir des .md
       dockerfile: site/Dockerfile
     ports:
-      # Local uniquement : constat/ liste les failles de la plateforme, ne pas l'exposer
-      # sur le réseau RESILIENCE-G6
+      # Local uniquement : l'accès extérieur passe par Tailscale (funnel), qui relaie vers ce
+      # port. Ne pas publier directement sur le réseau RESILIENCE-G6.
       - "127.0.0.1:8095:8080"
     read_only: true
     tmpfs:
