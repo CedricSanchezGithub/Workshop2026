@@ -6,7 +6,7 @@
 >
 > Ce plan s'appuie sur la matrice de risques (`ebios-rm.md`), le coût d'un arrêt (`services-critiques.md`), les objectifs de reprise (`rto-rpo.md`) et l'analyse réglementaire (`nis2-dora.md`).
 >
-> **Statut :** les mécanismes décrits sont ceux **prévus** pour le démonstrateur. Au 20/10, le moteur de remédiation, le modèle de détection et les sauvegardes ne sont pas encore codés : voir `constat/etat-implementation.md`. Chaque fiche sera confirmée ou corrigée après les essais de restauration (WOR-75), le chaos engineering (WOR-76) et les répétitions (WOR-78).
+> **Statut :** les actions automatiques décrites sont celles du code (moteur de remédiation `services/remediation/`, playbooks `ansible/playbooks/remediation/`), relevées dans `constat/etat-implementation.md` v0.3. Chaque fiche sera confirmée ou corrigée après les essais de restauration (WOR-75), le chaos engineering (WOR-76) et les répétitions (WOR-78).
 >
 > Ce document est indexé par l'assistant RAG (WOR-56). Chaque fiche scénario est donc rédigée pour être lue seule.
 
@@ -56,62 +56,61 @@ Les seuils viennent du coût d'un arrêt (`services-critiques.md`).
 | **N2 — Cellule de crise** | Service non rétabli à 30 min, **ou** perte de données confirmée, **ou** compromission du moteur de remédiation | Directeur de crise, RSSI, conformité, communication | G3 |
 | **N3 — Crise majeure** | Service non rétabli à 2 h, **ou** perte du PC Hôte | Direction générale | G4 |
 
-**Règle de l'automate :** l'automate ne tente **pas plus de 3 remédiations en 10 minutes** sur le même service. Au-delà, il s'arrête et passe en N1, pour éviter une boucle de redémarrages qui aggraverait l'arrêt.
+**Règle de l'automate :** l'automate fait **au plus 2 tentatives par incident** (action puis vérification). Après 2 échecs, il s'arrête, marque l'incident en échec et émet une escalade vers l'opérateur (N1, `docs/runbooks/reprise.md`). Une nouvelle alerte du même type pendant un incident en cours est fusionnée : seules les nouvelles sources sont bloquées. Il n'y a pas de limite d'un incident à l'autre.
 
 ## 4. Fiches scénarios
 
 ### Fiche S1 — Déni de service sur l'API de paiement (attaque A)
 
 - **Risque EBIOS :** R1 (hacktiviste, ER1) · gravité G4 si non traité
-- **Signaux :** latence et taux d'erreurs 5xx en forte hausse, débit anormal depuis une ou quelques sources, transactions en échec
+- **Signaux :** alerte ML de la famille `traffic` (débit, latence, erreurs, part de la première IP), après 2 fenêtres anormales consécutives
 - **Actions automatiques :**
-  1. Limitation de débit pour la ou les sources identifiées (à construire : le WAF n'en a pas, et toute nouvelle règle le redémarre)
-  2. Redémarrage propre de l'API si elle ne répond plus
-  3. Vérification : transaction test réussie, latence revenue au niveau normal
-- **Données :** aucune restauration, la base n'est pas touchée. Au 20/10, l'API du socle garde ses données en mémoire : le redémarrage (action 2) les efface
-- **Objectif :** RTO ≤ 5 min (cible démonstrateur ≤ 60 s) · RPO = 0
-- **Escalade :** N1 si l'attaque reprend depuis d'autres sources après la limitation
-- **Retour à la normale :** limitation levée après 30 min sans trafic anormal, ou sur décision de l'opérateur
+  1. **Blocage complet (403) au WAF** des sources qui pèsent au moins 20 % du trafic suspect ; la liste est rechargée à chaud
+  2. Transaction de test ; si elle échoue, redémarrage de l'API
+  3. Vérification : transaction de test réussie à travers le WAF
+- **Données :** aucune restauration. Mais l'API du socle garde ses données en mémoire : le redémarrage (action 2) efface les transactions
+- **Objectif :** RTO ≤ 5 min (cible démonstrateur ≤ 60 s) · RPO = 0 (pas tenable tant que l'API est en mémoire)
+- **Escalade :** N1 après 2 tentatives en échec ; une nouvelle alerte pendant l'incident ne bloque que les nouvelles sources
+- **Retour à la normale :** **pas de levée automatique** des blocages. L'opérateur lève la liste (`waf-unblock-all.yml`) ; la remise à l'état sain le fait aussi
 - **Risques résiduels :**
-  - L'attaquant change d'adresse : la limitation par source ne suffit plus (un vrai déni de service distribué exige une protection en amont, hors de portée du prototype)
-  - Un partenaire légitime au fort volume peut être limité à tort
+  - L'attaquant change d'adresse : le blocage par source ne suffit plus (un vrai déni de service distribué exige une protection en amont, hors de portée du prototype)
+  - Un partenaire légitime au fort volume peut être **bloqué** à tort, jusqu'à une action manuelle
 
 ### Fiche S2 — Injection applicative et altération de données (attaque B)
 
 - **Risque EBIOS :** R2 (cybercriminel, ER2) · gravité G4
-- **Signaux :** règle WAF déclenchée, motif anormal dans les journaux de l'API, erreurs applicatives, incohérence détectée dans les données
+- **Signaux :** alerte ML de la famille `injection` (motifs d'injection et blocages du WAF dans les journaux), après 2 fenêtres anormales consécutives
 - **Actions automatiques :**
-  1. Blocage de la source au WAF
-  2. **Copie des journaux et de l'état de la base compromise** (preuves), avant toute restauration
-  3. Restauration de la base depuis le dernier snapshot sain, puis rejeu des transactions légitimes (arbitrage en cours, voir `rto-rpo.md` §5)
-  4. Rotation du secret concerné
-  5. Vérification : transaction test réussie **et** contrôle d'intégrité des données
-- **Objectif :** RTO ≤ 5 min (cible ≤ 3 min) · RPO = 0 transaction confirmée perdue
-- **Escalade :** **N1 systématique**, même si la reprise réussit. Le RSSI qualifie l'incident ; la conformité évalue s'il est majeur au sens de DORA (une perte de données après un accès malveillant suffit)
+  1. Blocage complet (403) de la source au WAF
+  2. Constat d'intégrité : appel à `/health` (qui répond toujours « ok » : ce n'est pas un vrai contrôle)
+  3. **Restauration à l'état sain connu** : recréation du conteneur de l'API. L'API étant en mémoire, elle repart des données de départ ; **toutes les transactions, légitimes comprises, sont perdues**
+  4. Vérification : transaction de test réussie à travers le WAF
+- **Pas automatisé :** copie des preuves (`scripts/export-logs.sh`, à lancer à la main **avant** la restauration si possible), rotation des secrets, validation humaine
+- **Objectif :** RTO ≤ 5 min (cible ≤ 3 min) · RPO = 0 visé, **non tenu** par la restauration actuelle
+- **Escalade :** automatique seulement en cas d'échec. Procédure : l'opérateur informe le RSSI de tout incident d'intégrité, même résolu ; la conformité évalue s'il est majeur au sens de DORA (une perte de données après un accès malveillant suffit)
 - **Retour à la normale :** après correction de la vulnérabilité exploitée. D'ici là, la règle WAF reste active
 - **Risques résiduels :**
   - La vulnérabilité est toujours dans le code : le WAF n'est qu'un pansement
   - Une porte dérobée a pu être déposée ; restaurer les données ne la supprime pas
-  - Le snapshot « sain » peut contenir une altération plus ancienne, passée inaperçue
-  - Après la rotation des secrets, les utilisateurs doivent se reconnecter
+  - Une alerte à tort efface quand même toutes les transactions (voir S4)
+  - Sans export manuel, les preuves de l'attaque restent dans Loki, mais rien ne les protège d'une remise à l'état sain
 
 ### Fiche S3 — Panne d'un service sans attaque
 
 - **Couvre :** arrêt brutal d'un conteneur, saturation mémoire, base injoignable (testé par le chaos engineering, WOR-76)
 - **Signaux :** contrôle de santé en échec, métriques absentes
-- **Actions automatiques :** redémarrage du service ; si la base est en cause, vérification de son intégrité avant de relancer l'API
+- **Actions :** Docker Compose relance le conteneur (`healthcheck`) ; sinon, l'opérateur applique le runbook
 - **Objectif :** RTO ≤ 5 min · RPO = 0
-- **Escalade :** N1 au-delà de 3 redémarrages en 10 minutes
+- **Escalade :** pas d'action automatique : le moteur ne réagit qu'aux alertes ML. L'opérateur relance le service (`docs/runbooks/reprise.md`)
 - **Risques résiduels :** une cause profonde (disque plein, fuite mémoire) fera revenir la panne
 
 ### Fiche S4 — Remédiation déclenchée à tort (faux positif du modèle ML)
 
 - **Risque :** non intentionnel, cité dans `ebios-rm.md`
-- **Signaux :** remédiation exécutée sans anomalie confirmée par un second signal (SIEM, contrôle de santé)
-- **Conduite à tenir :**
-  1. Les actions de type S1 (limitation, redémarrage) restent autorisées : elles sont réversibles et courtes
-  2. Les actions destructrices (restauration de la base, rotation des secrets) **exigent deux signaux concordants** (ML et WAF ou SIEM). Sinon, l'automate passe en N1
-- **Risques résiduels :** une coupure courte provoquée par la défense elle-même ; elle est comptée dans le RTO
+- **Signaux :** incident ouvert sans attaque en cours, sources bloquées qui sont des clients légitimes
+- **Ce que fait le code :** une seule alerte ML suffit à déclencher toutes les actions, y compris la restauration. Il n'y a pas de second signal exigé (l'alerte combine déjà deux méthodes de détection, mais sur les mêmes données)
+- **Conduite à tenir :** l'opérateur lève les blocages à tort (`waf-unblock-all.yml`) et note l'incident pour le réentraînement du modèle
+- **Risques résiduels :** coupure provoquée par la défense elle-même ; après une fausse alerte d'injection, **perte de toutes les transactions**. La règle des deux signaux reste recommandée pour la production (`recommandations.md` REC-3)
 
 ### Fiche S5 — Moteur de remédiation défaillant ou détourné
 
@@ -122,7 +121,7 @@ Les seuils viennent du coût d'un arrêt (`services-critiques.md`).
   2. Passer en **surveillance manuelle** : l'opérateur suit le tableau de bord et applique les fiches à la main
   3. Préserver les journaux du moteur
 - **Escalade :** N2 immédiat
-- **Prévention :** périmètre d'actions limité, authentification des appels, journalisation (WOR-64)
+- **Prévention (en place) :** alertes signées HMAC, refus des alertes trop anciennes ou rejouées, liste fermée de playbooks, IP de l'hôte jamais bloquées, écoute locale, journal des événements. **Limite :** le moteur tourne sur l'hôte avec les droits Docker de l'utilisateur
 - **Risques résiduels :** pendant l'arrêt du moteur, plus aucune reprise automatique ; on retombe sur un RTO manuel de 30 min ou plus
 
 ### Fiche S6 — Suspicion de fuite de données
@@ -161,9 +160,9 @@ Quand la reprise automatique échoue, on maintient ce qui peut l'être :
 | Élément | Où se trouve la référence saine | Comment on restaure | Fréquence | Responsable |
 |---|---|---|---|---|
 | Code et configuration des services | Dépôt Git, version taguée (WOR-80) | Redéploiement Docker Compose et Ansible | À chaque livraison | Reza |
-| Règles du WAF | Dépôt Git | Redémarrage du WAF (pas de rechargement à chaud) | À chaque modification | Axel |
+| Règles du WAF | Dépôt Git | Liste d'IP bloquées : rechargement à chaud ; autres règles : redémarrage du WAF | À chaque modification | Axel |
 | Secrets | HashiCorp Vault, sur le PC Hôte | Rotation puis redémarrage des services concernés | Après tout incident d'intégrité | Axel |
-| Base de données | **Aucune sauvegarde au 20/10.** Cible : snapshot + journal des transactions (`rto-rpo.md` §5) | Restauration du snapshot puis rejeu | Minimum : un `pg_dump` avant chaque essai | Reza, Michael |
+| Données de l'API | **En mémoire dans le socle, aucune sauvegarde** | Recréation du conteneur : retour aux données de départ (`restore-service.yml`) | — (minimum souhaité : base PostgreSQL et `pg_dump` avant chaque essai) | Reza, Michael |
 | Journaux | Loki, rétention 7 jours, sur le PC Hôte | **Jamais écrasés** ; copiés avant toute restauration avec `scripts/export-logs.sh`. Au 20/10, la remise à l'état sain n'appelle pas cet export : il faut le lancer à la main | En continu | Axel |
 | Modèle ML | Dépôt Git (`ml/`) | Rechargement de la version validée | À chaque entraînement | Léa |
 | Index du RAG | Documents du dépôt | Réindexation | À chaque mise à jour des documents | Léa |
@@ -185,13 +184,13 @@ Délais DORA : règlement délégué (UE) 2025/301. L'assistant RAG peut prépar
 
 | Risque résiduel | Pourquoi il subsiste | Traitement proposé |
 |---|---|---|
-| L'attaquant revient, depuis une autre source | La limitation est faite par source, sur un seul hôte | Protection anti-déni de service en amont (contexte industriel) |
+| L'attaquant revient, depuis une autre source | Le blocage est fait par source, sur un seul hôte | Protection anti-déni de service en amont (contexte industriel) |
 | Vulnérabilité toujours présente après une injection | Le WAF bloque, mais le code n'est pas corrigé | Correctif et test de non-régression avant de lever le niveau N1 |
 | Porte dérobée ou altération ancienne | Restaurer les données ne nettoie pas tout | Analyse après incident à partir des journaux conservés |
 | Hôte unique | Point de défaillance unique | Deuxième site et sauvegardes hors site (`nis2-dora.md` §4) |
 | Sauvegardes sur le même hôte | Perdues avec l'hôte | Copie hors site, immuable |
-| Boucle de remédiation | Un incident persistant peut faire redémarrer un service en boucle | Limite de 3 remédiations en 10 minutes, puis escalade |
-| Faux positifs ML | Un modèle entraîné sur peu de données | Deux signaux exigés pour les actions destructrices ; réentraînement |
+| Boucle de remédiation | Un incident persistant peut faire redémarrer un service en boucle | 2 tentatives par incident, puis escalade ; pas encore de limite entre incidents |
+| Faux positifs ML | Modèle entraîné sur du trafic normal seulement ; une alerte suffit à restaurer | Évaluer le modèle sur des attaques ; en production, deux signaux pour les actions destructrices (REC-3) |
 | Droits élevés du moteur de remédiation | Nécessaires pour agir sur les conteneurs | Périmètre limité, authentification, journalisation (WOR-64) |
 
 ## 9. Tests et maintien du plan
@@ -206,6 +205,6 @@ Le plan est mis à jour après chaque test et après chaque incident (retour d'e
 
 ## 10. Décisions en attente
 
-1. Méthode de restauration de la base après une injection (snapshot seul, ou snapshot et rejeu) : Michael, Reza.
-2. Fréquence des snapshots de la base : Reza.
-3. Règle des deux signaux pour les actions destructrices et limite de 3 remédiations : à intégrer au moteur (WOR-38) si l'équipe valide.
+1. Restauration après une injection : garder la recréation automatique (perte des transactions) ou ajouter une validation humaine et une vraie restauration de base : équipe, Cédric.
+2. Brancher l'API du socle sur PostgreSQL et sauvegarder avant chaque essai : Reza, Michael.
+3. Levée automatique des blocages, limite entre incidents, export des preuves avant restauration : Michael.

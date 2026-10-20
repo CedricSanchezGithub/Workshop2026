@@ -25,7 +25,7 @@
 |---|---|---|---|---|---|
 | Traitement des transactions (API + BDD) | Vitale | **≤ 5 min** | **0** transaction confirmée perdue ou dupliquée | RTO ≤ 60 s (attaque A) · ≤ 3 min (attaque B) | Remédiation automatique (WOR-38), playbooks Ansible (WOR-44) |
 | Authentification | Vitale | ≤ 5 min | Sans objet : une session perdue oblige seulement à se reconnecter | Retour en même temps que l'API | Redémarrage ; après une rotation de secret, reconnexion des utilisateurs acceptée |
-| WAF / point d'entrée | Vitale | ≤ 5 min | Sans objet ; la configuration est versionnée | Coupure de quelques secondes à chaque changement de règle, à mesurer | Pas de rechargement à chaud : le WAF redémarre quand une règle change (`config_watch`) |
+| WAF / point d'entrée | Vitale | ≤ 5 min | Sans objet ; la configuration est versionnée | Pas de coupure pour un blocage d'IP | Liste d'IP bloquées rechargée à chaud (20 s maximum) ; les autres règles demandent un redémarrage |
 | Journalisation et SIEM | Importante | ≤ 1 h | **0** journal perdu | Aucune perte pendant les essais | Export des journaux (`scripts/export-logs.sh`) **avant** toute restauration |
 | Consultation de l'historique | Importante | ≤ 30 min | 0 | Retour en même temps que l'API | Même service que l'API |
 | Supervision, détection ML, remédiation | Support critique | ≤ 15 min | Sans objet ; le modèle est versionné | Hors périmètre de l'attaque | Relance par Docker Compose |
@@ -40,15 +40,17 @@ Le RTO se décompose en étapes. Chaque pilier tient une partie du budget. Les d
 | Début de l'impact → anomalie visible dans les métriques | T1 → T2 | Infrastructure (collecte Prometheus toutes les 5 s) | ≤ 5 s | ≤ 5 s |
 | Anomalie visible → alerte ML | T2 → T3 | IA / Data (fenêtre de 60 s évaluée toutes les 10 s, alerte après deux fenêtres anormales consécutives) | ≈ 20 s | ≈ 20 s |
 | Alerte → décision de remédiation | T3 → T4 | Développement | ≤ 5 s | ≤ 5 s |
-| Décision → action terminée | T4 → T5 | Infrastructure / Développement | ≤ 15 s (redémarrage de l'API ; une limitation au WAF coûterait aussi un redémarrage du WAF) | ≤ 2 min (blocage, restauration, rotation du secret) |
-| Action terminée → transaction test réussie et données vérifiées | T5 → T6 | Développement | ≤ 10 s | ≤ 20 s |
+| Décision → action terminée | T4 → T5 | Infrastructure / Développement | ≤ 15 s (blocage d'IP au WAF ; redémarrage de l'API si besoin, jusqu'à 90 s) | ≤ 2 min (blocage, recréation du conteneur) |
+| Action terminée → transaction test réussie et données vérifiées | T5 → T6 | Développement | ≤ 10 s (jusqu'à 6 essais espacés de 3 s) | ≤ 20 s |
 | **Total (RTO mesuré = T6 − T1)** | | | **≤ 60 s** | **≤ 3 min** |
 
 T0 désigne le lancement de l'attaque sur le PC Attaquant. L'écart T0 → T1 dépend de l'attaque et ne compte pas dans le RTO.
 
 > **Point de vigilance pour le Clip Chrono :** 60 s, c'est T0 → T6 **et** l'affichage du résultat. La collecte passe déjà toutes les 5 s (`infra/prometheus/prometheus.yml`). La détection reste le poste le plus long : environ 20 s si deux évaluations consécutives suffisent, jusqu'à 70 s si la fenêtre de 60 s doit se remplir d'abord (`docs/runbooks/reprise.md`). Le budget de 60 s est donc serré : **à mesurer en priorité avec Léa.**
 
-## 5. Arbitrage à trancher : la restauration après une injection (attaque B)
+## 5. La restauration après une injection (attaque B)
+
+**Ce que fait le code :** le moteur recrée le conteneur de l'API, qui garde ses données en mémoire. Le service revient vite, mais **toutes les transactions sont perdues** (RPO non tenu). C'est le choix retenu pour l'instant ; les options ci-dessous restent celles à étudier pour tenir le RPO = 0.
 
 WOR-29 prévoit un **retour à un snapshot propre de la base**. C'est incompatible avec un RPO de 0 : toutes les transactions légitimes validées entre le snapshot et la restauration seraient perdues.
 
@@ -59,9 +61,7 @@ WOR-29 prévoit un **retour à un snapshot propre de la base**. C'est incompatib
 | 3. Restauration à un instant précis (PITR, par exemple l'archivage des WAL avec PostgreSQL), juste avant la première requête malveillante | Proche de 0, mais les transactions légitimes postérieures sont perdues | Moyen à élevé | Solution industrielle de référence, à citer dans les recommandations |
 | 4. Correction ciblée : annuler les seules lignes altérées, sans restauration globale | 0 | Élevé et risqué | Non retenu pour un prototype de 4 jours |
 
-**Proposition :** option 2 pour la démo, option 3 citée comme cible industrielle. Dans tous les cas, **les journaux et l'état de la base compromise sont copiés avant la restauration** : ce sont des preuves pour l'investigation et la notification.
-
-À valider avec Michael (WOR-38, WOR-39) et Reza (WOR-44) avant de figer WOR-29.
+**Proposition :** option 2 si l'équipe a le temps de brancher l'API sur PostgreSQL, option 3 citée comme cible industrielle. Dans tous les cas, **les journaux sont copiés avant la restauration** (`scripts/export-logs.sh`) : ce sont des preuves pour l'investigation et la notification.
 
 ## 6. Protocole de mesure (pour WOR-79)
 
@@ -101,9 +101,10 @@ On retient le **pire des trois essais**, pas la moyenne : un RTO se garantit, il
 
 ## 7. Ce que le code permet de tenir au 20/10
 
-- **RPO = 0 : pas tenable en l'état.** Dans le socle, l'API garde ses données en mémoire : un redémarrage, première réponse à l'attaque A, efface toutes les transactions. Il n'existe en plus aucune sauvegarde de la base. Minimum avant les essais : brancher l'API sur PostgreSQL et faire un `pg_dump` avant chaque essai.
-- **Délai de détection : pas mesurable.** Le modèle de détection n'existe pas encore ; seule l'extraction des features (fenêtre de 60 s, pas de 10 s) est codée.
-- **Vérification de la reprise (T6) : à construire.** `/health` répond toujours « ok » ; la preuve de reprise doit être une transaction de test réussie, pas ce contrôle.
+- **RPO = 0 : pas tenable en l'état.** Dans le socle, l'API garde ses données en mémoire : un redémarrage (attaque A) ou une restauration (attaque B) efface toutes les transactions. Aucune sauvegarde.
+- **Délai de détection : pas encore mesuré.** Le modèle existe, mais il n'a été validé que sur du trafic normal.
+- **Vérification de la reprise (T6) : en place.** Le moteur passe une transaction de test complète à travers le WAF.
+- **Durée affichée par le moteur :** elle part de la réception de l'alerte (T3 → T6). Le RTO se calcule depuis T1, avec le protocole du §6.
 
 Détail et sources : `constat/etat-implementation.md`.
 
