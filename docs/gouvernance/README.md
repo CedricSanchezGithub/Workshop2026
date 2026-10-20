@@ -96,3 +96,18 @@ Puis ouvrir http://127.0.0.1:8095. Le site n'écoute que sur la machine locale :
 
 Pour publier un nouveau document dans le site, l'ajouter au menu (`sidebar`) dans `site/astro.config.mjs`.
 
+### Déployer le site sur une autre machine (Raspberry Pi…)
+
+`site/deploy.sh` ne récupère que `docs/gouvernance/` du dépôt (clone partiel), construit l'image et lance le site. Relancé, il ne reconstruit que si un fichier de la gouvernance a changé.
+
+```
+curl -fsSL https://raw.githubusercontent.com/CedricSanchezGithub/Workshop2026/main/docs/gouvernance/site/deploy.sh | bash
+sudo tailscale serve --bg 8095
+```
+
+`tailscale serve` rend le site accessible en HTTPS aux seules machines du tailnet. Ne pas utiliser `tailscale funnel`, qui le publierait sur Internet. Mise à jour automatique toutes les 30 minutes :
+
+```
+*/30 * * * * ~/workshop2026/docs/gouvernance/site/deploy.sh >> ~/gouvernance-site.log 2>&1
+```
+
