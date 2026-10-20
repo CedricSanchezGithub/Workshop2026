@@ -20,8 +20,8 @@ câbler la persistance Postgres + Vault (WOR-33) et intégrer le frontend/worker
 ## Organisation
 
 ```text
+node_modules/                  # dépendances du workspace (installées par npm ci)
 front/                         # application React + Vite
-  node_modules/                # dépendances frontend et outils du workspace
   tests/                       # tests métier et structurels
   dist/                        # build frontend généré
 backend/
