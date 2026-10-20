@@ -1,49 +1,19 @@
-# payment-api (WOR-35)
+# services/payment-api — voir `app/`
 
-API métier de paiement fictive. **Scaffold fonctionnel** destiné à débloquer la chaîne
-attaque → détection → remédiation → reprise : les autres piliers (WAF, ML, remédiation,
-recette) ont désormais une cible réelle.
+L'API métier de paiement (WOR-35) est implémentée dans **`app/`** (application
+« Pay&Go » de Michael : Express/TypeScript + worker + frontend React, architecture
+hexagonale). Ce dossier `services/payment-api/` ne contient volontairement **pas** de
+code dupliqué.
 
-> Stack : **Python / FastAPI** (cohérent avec `ml/` et `rag/`). Choix à entériner dans l'ADR
-> WOR-26 ; `auth`, `frontend`, `dashboard`, `remediation` restent à implémenter.
+## Intégration plateforme
 
-## Endpoints
+Le service **`payment-api`** de `infra/docker-compose.yml` construit l'API depuis
+`app/` (`app/infra/docker/Dockerfile.api`) et la place :
 
-| Méthode | Chemin | Rôle |
-|---|---|---|
-| GET  | `/` | ping simple |
-| GET  | `/health` | healthcheck **métier réel** (vérifie la base) — 200 si OK, 503 sinon |
-| POST | `/pay` | `{"src","dst","amount"}` : débite/crédite dans une transaction (422 si solde insuffisant) |
-| GET  | `/integrity` | somme des soldes vs invariant (preuve de reprise du scénario B) |
-| GET  | `/metrics` | métriques Prometheus |
+- **derrière le WAF** (ModSecurity/CRS, WOR-60) — point d'entrée unique ;
+- **dans l'observabilité** : `/metrics` scrapé par Prometheus (`job="payment-api"`),
+  logs JSON (avec `client_ip`) collectés par Alloy → Loki (`{container="payment-api"}`) ;
+- **durcie** : non-root (`user: node`), `cap_drop: ALL`, sur les réseaux `backend` + `monitoring`.
 
-## Signaux produits (contrat WOR-29 / WOR-37)
-
-- **Prometheus** (`job="payment-api"`) : `http_requests_total{method,path,status}`,
-  `http_request_duration_seconds` (histogramme), `payments_total{status}`,
-  `accounts_balance_sum`. → signaux du scénario A (débit, latence, 5xx) et de l'intégrité (B).
-- **Loki** (`{container="payment-api"}`) : un log JSON par requête — `method`, `path`, `status`,
-  `duration_ms`, `client_ip` (lu depuis `X-Forwarded-For` posé par le WAF), `request_id`.
-
-## Accès
-
-Jamais publié : joignable uniquement via le **WAF** (`http://<WAF_BIND>:8080`), sur le réseau
-`backend` interne. Lit le mot de passe Postgres rendu par Vault (`POSTGRES_PASSWORD_FILE`),
-jamais en clair. Conteneur non-root, `cap_drop: ALL` (durcissement WOR-63).
-
-## Base de données
-
-Au démarrage (idempotent) : tables `accounts` (comptes fictifs `alice`/`bob`/`carol`, 1000
-chacun) et `payments`. Schéma minimal — à étoffer avec WOR-33.
-
-## Lancer / reconstruire
-
-```bash
-cd infra && docker compose up -d --build payment-api
-```
-
-## Vérifié (2026-10-20)
-
-Via le WAF : `GET /` → 200, `/health` → db up, `POST /pay` alice→bob accepté, `/integrity`
-intact (3000), SQLi → 403 (bloqué par le WAF). Prometheus scrape `up=1` ; attaque A →
-signal de débit mesurable ; logs présents dans Loki.
+Mode **in-memory** pour l'instant (pas de dépendance BDD côté plateforme). Suivi :
+câbler la persistance Postgres + Vault (WOR-33) et intégrer le frontend/worker de `app/`.
