@@ -36,7 +36,7 @@ infra/
 docs/                          # architecture, auth, paiements et audit
 ```
 
-Les fichiers `package.json` et `package-lock.json` restent à la racine pour piloter le workspace et garantir une installation reproductible.
+Les fichiers `package.json` et `package-lock.json` restent à la racine de `services/payment-api/` pour piloter le workspace et garantir une installation reproductible.
 
 La clé du chatbot n'est jamais stockée dans le frontend. Définir `OPENAI_API_KEY` dans l'environnement du serveur ; l'API applique une limite de taille et de débit avant d'appeler le fournisseur.
 
