@@ -70,3 +70,6 @@ ml/data/.label_open.json
 
 # Clé d'API Linear locale
 key.claude
+
+# Preuves d'investigation exportées depuis Loki (runtime, WOR-65) — jamais versionnées
+evidence/
