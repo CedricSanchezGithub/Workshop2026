@@ -264,16 +264,16 @@ services:
           cpus: "0.5"
           memory: 384M
 
-  # API métier de paiement (WOR-35) — application « Pay&Go » de Michael (app/), intégrée
+  # API métier de paiement (WOR-35) — application « Pay&Go » de Michael (services/payment-api/), intégrée
   # DERRIÈRE le WAF et dans l'observabilité de la plateforme.
-  # Construite depuis app/ (Express/TypeScript). Mode in-memory (pas de dépendance BDD ici) :
+  # Construite depuis services/payment-api/ (Express/TypeScript). Mode in-memory (pas de dépendance BDD ici) :
   # le driver postgres de Pay&Go reste utilisable mais la persistance n'est pas encore câblée
   # sur le Postgres de la plateforme (suivi : WOR-33/WOR-35). Expose /metrics (Prometheus,
   # format texte) et des logs JSON sur stdout avec client_ip (Loki) — contrat WOR-29/WOR-37.
   payment-api:
     <<: *hardening
     build:
-      context: ../app
+      context: ../services/payment-api
       dockerfile: infra/docker/Dockerfile.api
     image: resilience-alpha/payment-api:dev
     user: node                      # non-root (durcissement WOR-63)

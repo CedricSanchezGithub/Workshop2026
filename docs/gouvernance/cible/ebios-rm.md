@@ -32,7 +32,7 @@
 | ID | Bien support | Valeurs métier portées |
 |---|---|---|
 | BS1 | Front web de paiement | VM1, VM2 |
-| BS2 | API métier de paiement (Node.js, `app/backend/`) | VM1, VM2, VM4 |
+| BS2 | API métier de paiement (Node.js, `services/payment-api/backend/`) | VM1, VM2, VM4 |
 | BS3 | Authentification intégrée à l'API (pas de service séparé), sessions en base ; dans le socle, elles sont en mémoire tant que l'API n'est pas branchée sur PostgreSQL | VM3 |
 | BS4 | Base PostgreSQL (utilisateurs, sessions, intentions de paiement) | VM1, VM4 |
 | BS5 | WAF / reverse proxy | VM1, VM2, VM3 |
