@@ -296,6 +296,34 @@ services:
           cpus: "0.75"
           memory: 384M
 
+  # Reconnaissance faciale (WOR-95) — IA légère (InsightFace) appelée par le back-office
+  # pour la MFA (consigne additionnelle 1). Interne, jamais publiée. Stocke uniquement des
+  # embeddings (RGPD, WOR-101). /metrics -> Prometheus, logs JSON -> Loki.
+  face-recognition:
+    <<: *hardening
+    build:
+      context: ../services/face-recognition
+    image: resilience-alpha/face-recognition:dev
+    environment:
+      FACE_THRESHOLD: "0.40"
+    volumes:
+      - face-data:/data
+    networks:
+      - backend      # appelée par le back-office
+      - monitoring   # Prometheus scrape /metrics
+    cap_drop: [ALL]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8080/health',timeout=3).status==200 else 1)"]
+      interval: 10s
+      timeout: 4s
+      retries: 10
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 768M
+
   # WAF applicatif (WOR-60) : ModSecurity + OWASP CRS en reverse-proxy devant l'API/le front.
   # Point d'entrée publié unique de l'application ; bloque les injections (règles CRS 942xxx)
   # AVANT d'atteindre le backend, et journalise chaque blocage en JSON sur stdout —
@@ -362,6 +390,7 @@ volumes:
   grafana-data:
   vault-data:
   alloy-data:
+  face-data:        # embeddings faciaux (WOR-95) — pas d'images brutes (RGPD)
   # Secrets rendus par vault-agent : en mémoire uniquement (jamais sur disque),
   # un volume par service consommateur. uid/gid = utilisateur "vault" de l'image.
   secrets-postgres:
