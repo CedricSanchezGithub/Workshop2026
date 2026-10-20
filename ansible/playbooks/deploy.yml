@@ -60,6 +60,15 @@
     - name: Initialiser, desceller et configurer Vault
       ansible.builtin.include_tasks: tasks/vault-bootstrap.yml
 
+    # Le WAF refuse de démarrer si la liste de blocage de la remédiation (WOR-38) est absente
+    # (ignorée par Git) : on la crée avec sa seule adresse de documentation.
+    - name: Créer la liste de blocage du WAF si elle n'existe pas
+      ansible.builtin.copy:
+        dest: "{{ remediation_blocklist }}"
+        content: "{{ remediation_blocklist_placeholder }}\n"
+        mode: "0644"
+        force: false
+
     - name: Démarrer la stack et attendre les healthchecks
       community.docker.docker_compose_v2:
         project_src: "{{ infra_dir }}"

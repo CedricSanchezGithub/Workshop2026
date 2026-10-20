@@ -46,3 +46,12 @@ config_watch:
   vault: [vault/vault.hcl]
   vault-agent: [vault/agent.hcl]
   waf: [waf/templates]
+
+# Remédiation automatique (WOR-38/39) — playbooks de ansible/playbooks/remediation/,
+# seuls autorisés pour le moteur de remédiation (services/remediation).
+remediation_blocklist: "{{ infra_dir }}/waf/remediation/blocked-ips.txt"
+# Adresse de documentation (RFC 5737) gardée en permanence : la liste n'est jamais vide.
+remediation_blocklist_placeholder: 192.0.2.255
+# Services que le moteur peut redémarrer ou recréer (liste fermée).
+remediation_services:
+  - payment-api

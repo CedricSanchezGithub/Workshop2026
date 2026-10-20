@@ -72,6 +72,7 @@ if command -v ansible-playbook >/dev/null 2>&1; then
   cd "$ANSIBLE_DIR"
   ansible-playbook playbooks/teardown.yml -e purge=true
   ansible-playbook playbooks/deploy.yml     # deploy.yml importe verify.yml (WOR-77)
+  ansible-playbook playbooks/remediation/waf-unblock-all.yml   # IP bloquées par la remédiation (fichier hôte, non purgé)
   echo ">>> RESET OK $(date -Is)"
   exit 0
 fi
@@ -87,6 +88,8 @@ if [[ ! -f "$ENV_FILE" ]]; then
 fi
 
 cd "$INFRA_DIR"
+# IP bloquées par la remédiation : fichier hôte, non purgé par down -v
+printf '192.0.2.255\n' > "$INFRA_DIR/waf/remediation/blocked-ips.txt"
 echo ">>> down -v (arrêt + purge des volumes)"
 docker compose down -v --remove-orphans
 echo ">>> up -d --wait (redémarrage + healthchecks)"

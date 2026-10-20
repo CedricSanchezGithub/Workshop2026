@@ -350,9 +350,18 @@ services:
       # Accès nginx sur stdout -> Loki : débit vu par le WAF et URL des requêtes (features ML waf_req_rate,
       # suspicious_char_ratio ; contrat docs/architecture/contrat-observabilite-ia.md §3)
       ACCESSLOG: "/dev/stdout"
+      # 2 workers suffisent pour la démo ; « auto » en lance un par cœur (24 sur le PC de dev), ce qui
+      # ralentit chaque rechargement de la liste de blocage et pèse sur la limite mémoire.
+      NGINX_WORKER_PROCESSES: "2"
     volumes:
       # Surcharge de l'include proxy : résolution différée du backend (le WAF démarre sans l'API)
       - ./waf/templates/includes/proxy_backend.conf.template:/etc/nginx/templates/includes/proxy_backend.conf.template:ro
+      - ./waf/templates/nginx.conf.template:/etc/nginx/templates/nginx.conf.template:ro
+      # Remédiation (WOR-38) : règle fixe chargée avant le CRS + liste d'IP bloquées écrite par Ansible.
+      # Le dossier (et non le fichier) est monté : le WAF voit la liste à jour après un `nginx -s reload`.
+      # Monté comme « plugin » CRS : seul emplacement inclus avant les règles CRS par cette image.
+      - ./waf/modsecurity/remediation-before.conf:/etc/modsecurity.d/owasp-crs/plugins/remediation-before.conf:ro
+      - ./waf/remediation:/etc/modsecurity.d/remediation:ro
     ports:
       - "${WAF_BIND:-127.0.0.1}:${WAF_PORT:-8080}:8080"
     networks:

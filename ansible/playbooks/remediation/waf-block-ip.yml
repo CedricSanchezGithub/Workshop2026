@@ -1,0 +1,43 @@
+# Bloque une ou plusieurs IP au WAF (réponse aux attaques A et B, WOR-39).
+# Appelé uniquement par le moteur de remédiation :
+#   ansible-playbook playbooks/remediation/waf-block-ip.yml -e '{"ips": ["192.168.137.42"]}'
+- name: Bloquer des IP sources au WAF
+  hosts: pc_hote
+  gather_facts: false
+  tasks:
+    - name: Valider les adresses (IPv4, ni loopback, ni non spécifiée)
+      ansible.builtin.assert:
+        that:
+          - ips is sequence and ips is not string and ips | length > 0 and ips | length <= 20
+          - ips | reject('match', '^((25[0-5]|2[0-4][0-9]|1?[0-9]?[0-9])\.){3}(25[0-5]|2[0-4][0-9]|1?[0-9]?[0-9])$') | list | length == 0
+          - ips | select('match', '^(127\.|0\.)') | list | length == 0
+        fail_msg: "Adresses refusées : {{ ips }}"
+        quiet: true
+
+    - name: Ajouter les IP à la liste de blocage
+      ansible.builtin.lineinfile:
+        path: "{{ remediation_blocklist }}"
+        line: "{{ item }}"
+        create: true
+        mode: "0644"
+      loop: "{{ [remediation_blocklist_placeholder] + ips }}"
+      register: blocklist
+
+    # `nginx -s reload` rend la main avant que la nouvelle configuration soit active (le CRS met
+    # ~3 s à se recharger). On attend que tous les workers d'avant le reload aient été remplacés :
+    # à partir de là, chaque nouvelle requête est filtrée avec la liste à jour.
+    - name: Recharger nginx dans le WAF et attendre que la nouvelle liste soit active
+      ansible.builtin.command:
+        argv:
+          - docker
+          - compose
+          - exec
+          - -T
+          - waf
+          - sh
+          - -c
+          - >-
+            old=$(ps -o pid,args | awk '/nginx: worker process$/ {print $1}'); nginx -s reload || exit 1; i=0; while [ $i -lt 100 ]; do cur=$(ps -o pid,args | awk '/nginx: worker process$/ {print $1}'); stale=0; for p in $cur; do echo "$old" | grep -qx "$p" && stale=1; done; if [ -n "$cur" ] && [ $stale -eq 0 ]; then exit 0; fi; i=$((i+1)); sleep 0.2; done; echo "reload non appliqué après 20 s" >&2; exit 1
+        chdir: "{{ infra_dir }}"
+      when: blocklist is changed
+      changed_when: true
