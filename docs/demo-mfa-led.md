@@ -16,9 +16,13 @@ Par défaut le WAF n'écoute que sur `127.0.0.1`. Pour que l'ESP l'atteigne, pub
 `<HOST_IP>` :
 
 ```bash
-cd infra
-grep -q '^WAF_BIND=' .env && sed -i "s/^WAF_BIND=.*/WAF_BIND=<HOST_IP>/" .env || echo "WAF_BIND=<HOST_IP>" >> .env
-cd ../ansible && ansible-playbook playbooks/deploy.yml     # idempotent, réensemence la blocklist WAF
+# Détecte automatiquement l'IP du PC Hôte (NE PAS écrire <HOST_IP> en dur dans .env !)
+HOST_IP=$(ip route get 1.1.1.1 | awk '{print $7; exit}')
+grep -q '^WAF_BIND=' infra/.env \
+  && sed -i "s/^WAF_BIND=.*/WAF_BIND=$HOST_IP/" infra/.env \
+  || echo "WAF_BIND=$HOST_IP" >> infra/.env
+grep '^WAF_BIND' infra/.env                                   # doit afficher une IP, pas <HOST_IP>
+cd ansible && ansible-playbook playbooks/deploy.yml && cd ..  # idempotent, réensemence la blocklist WAF
 ```
 
 Vérifier : `curl -s http://<HOST_IP>:8080/v1/device/led` → `{"data":{"signal":"idle","seq":0}}`.
@@ -78,8 +82,14 @@ PY
 
 ## 4. Dérouler la démo
 
-1. Ouvrir le back-office dans un navigateur **sur le PC Hôte** (la caméra USB y est branchée) :
-   la page de connexion.
+Lancer l'interface (front Vite pointant sur le WAF, origine CORS déjà autorisée) :
+
+```bash
+scripts/demo-start.sh        # ou : scripts/demo-start.sh <HOST_IP>
+```
+
+1. Ouvrir **http://localhost:5173** dans un navigateur **sur le PC Hôte** (la caméra USB y est
+   branchée). ⚠️ Bien ouvrir `localhost` : `getUserMedia` est bloqué sur une IP en http.
 2. Saisir l'**identifiant** (`admin@resilience-alpha.local`) → la **caméra s'active**.
 3. Regarder la caméra, **Confirmer mon identité** :
    - visage **reconnu** → **LED vert clignotant**, le champ **mot de passe** apparaît ;
