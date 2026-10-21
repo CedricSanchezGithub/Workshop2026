@@ -49,7 +49,7 @@
         "db_error_rate"
       ],
       "trained_on_windows": 1836,
-      "if_threshold": -0.252,
+      "if_threshold": -0.2713,
       "false_positive_rate_window": 0.0013,
       "false_alerts_on_normal": 0,
       "window_recall_own_type": null,

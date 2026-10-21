@@ -110,6 +110,9 @@ def family_columns(family: str) -> list[str]:
 
 
 FAMILIES = {"traffic": "dos", "injection": "sqli"}
+# Familles dont toutes les features augmentent en cas d'attaque (une baisse n'est pas suspecte).
+# Le trafic reste bilatéral : une chute des transactions acceptées est elle-même un signe de DoS.
+UPPER_ONLY = {"injection"}
 
 
 # --- Accès aux API ---

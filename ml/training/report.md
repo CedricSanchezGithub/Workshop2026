@@ -1,6 +1,6 @@
 # Rapport d'entraînement du détecteur (WOR-52)
 
-Généré le 2026-10-21 12:30 — `uv run python -m training.train platform_normal_02.parquet`
+Généré le 2026-10-21 13:37 — `uv run python -m training.train platform_normal_02.parquet`
 
 ## Données
 
