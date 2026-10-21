@@ -24,7 +24,7 @@ from training.model import FamilyModel
 ML = Path(__file__).resolve().parents[1]
 MODEL_PATH = ML / "inference" / "models" / "detector.joblib"
 REPORT = ML / "training" / "report.md"
-CONSECUTIVE = 2
+CONSECUTIVE = 3
 TRAIN_SHARE = 0.7
 
 

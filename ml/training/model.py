@@ -43,7 +43,7 @@ class FamilyModel:
         return (T - self.center) / self.scale
 
     # --- Apprentissage ---------------------------------------------------------------------
-    def fit(self, normal: pd.DataFrame, fp_quantile: float = 0.005, z_margin: float = 1.5,
+    def fit(self, normal: pd.DataFrame, fp_quantile: float = 0.002, z_margin: float = 1.5,
             z_floor: float = 6.0, seed: int = 42) -> "FamilyModel":
         T = self._transform(normal)
         self.center = np.median(T, axis=0)

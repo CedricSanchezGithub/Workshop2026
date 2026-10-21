@@ -4,7 +4,7 @@ Toutes les 10 s : features de la fenêtre glissante de 60 s (`features/extract.p
 
 | Règle | Valeur |
 |---|---|
-| Alerte | après **2 fenêtres anormales consécutives** (évite les déclenchements sur un pic isolé) |
+| Alerte | après **3 fenêtres anormales consécutives** (évite les déclenchements sur un pic isolé ; 2 donnaient environ une fausse alerte par heure et demie sur la plateforme) |
 | Fin d'incident | événement `resolved` après 3 fenêtres normales |
 | Sources (`offenders`) | IP pesant ≥ 20 % du trafic de la fenêtre : journaux de l'API pour `dos`, audits WAF (règles 93x/94x) pour `sqli` |
 | Explication | 4 features les plus éloignées de la normale (`top_features`) |
