@@ -2,7 +2,7 @@
 
 > **Statut : cible.** Ce document décrit ce que l'équipe vise et a décidé, pas ce qui est déjà codé. L'état réel du code est suivi dans `constat/etat-implementation.md`.
 
-> Ticket : WOR-70 · Responsable : Cédric · Version 0.2 du 20/10/2026
+> Ticket : WOR-70 · Responsable : Cédric · Version 0.3 du 21/10/2026
 >
 > Objectifs fixés à partir du coût d'un arrêt (`services-critiques.md`) et des seuils de DORA (`nis2-dora.md`), avec **la façon de les mesurer** pendant les essais (WOR-79).
 
@@ -38,7 +38,7 @@ Le RTO se décompose en étapes. Chaque pilier tient une partie du budget. Les d
 | Étape | Marqueur de temps | Responsable | Budget attaque A | Budget attaque B |
 |---|---|---|---|---|
 | Début de l'impact → anomalie visible dans les métriques | T1 → T2 | Infrastructure (collecte Prometheus toutes les 5 s) | ≤ 5 s | ≤ 5 s |
-| Anomalie visible → alerte ML | T2 → T3 | IA / Data (fenêtre de 60 s évaluée toutes les 10 s, alerte après deux fenêtres anormales consécutives) | ≈ 20 s | ≈ 20 s |
+| Anomalie visible → alerte ML | T2 → T3 | IA / Data (fenêtre de 60 s évaluée toutes les 10 s, alerte après trois fenêtres anormales consécutives) | ≈ 30 s | ≈ 30 s |
 | Alerte → décision de remédiation | T3 → T4 | Développement | ≤ 5 s | ≤ 5 s |
 | Décision → action terminée | T4 → T5 | Infrastructure / Développement | ≤ 15 s (blocage d'IP au WAF ; redémarrage de l'API si besoin, jusqu'à 90 s) | ≤ 2 min (blocage, recréation du conteneur) |
 | Action terminée → transaction test réussie et données vérifiées | T5 → T6 | Développement | ≤ 10 s (jusqu'à 6 essais espacés de 3 s) | ≤ 20 s |
@@ -46,7 +46,7 @@ Le RTO se décompose en étapes. Chaque pilier tient une partie du budget. Les d
 
 T0 désigne le lancement de l'attaque sur le PC Attaquant. L'écart T0 → T1 dépend de l'attaque et ne compte pas dans le RTO.
 
-> **Point de vigilance pour le Clip Chrono :** 60 s, c'est T0 → T6 **et** l'affichage du résultat. La collecte passe déjà toutes les 5 s (`infra/prometheus/prometheus.yml`). La détection reste le poste le plus long : environ 20 s si deux évaluations consécutives suffisent, jusqu'à 70 s si la fenêtre de 60 s doit se remplir d'abord (`docs/runbooks/reprise.md`). Le budget de 60 s est donc serré : **à mesurer en priorité avec Léa.**
+> **Point de vigilance pour le Clip Chrono :** 60 s, c'est T0 → T6 **et** l'affichage du résultat. La collecte passe déjà toutes les 5 s (`infra/prometheus/prometheus.yml`). La détection reste le poste le plus long : environ 30 s si trois évaluations consécutives suffisent, jusqu'à 80 s si la fenêtre de 60 s doit se remplir d'abord (`docs/runbooks/reprise.md`). Le passage de 2 à 3 fenêtres (21/10, pour réduire les fausses alertes) ajoute 10 s : la somme des budgets de l'attaque A atteint 65 s et dépasse les 60 s. **À mesurer en priorité avec Léa.**
 
 ## 5. La restauration après une injection (attaque B)
 

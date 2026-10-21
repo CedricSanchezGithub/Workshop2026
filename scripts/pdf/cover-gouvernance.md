@@ -21,17 +21,18 @@ Les 35 tickets communs (Pilotage, Cadrage, Intégration, Livrables) n'ont pas en
 | WOR-31 | Matrice de risques EBIOS RM, version initiale | Terminé, validé par les coachs | Partie « EBIOS RM » |
 | WOR-68 | Services critiques et coût d'un arrêt de paiement | Terminé | Partie « Services critiques » |
 | WOR-69 | Analyse NIS2 / DORA | En cours, version 0.2 | Partie « Analyse NIS2 / DORA » |
-| WOR-70 | Objectifs RTO / RPO | En cours, version 0.2 | Partie « Objectifs RTO / RPO » ; temps mesurés attendus des essais (WOR-79) |
-| WOR-71 | PCA / PRA | En cours, version 0.2 | Partie « PCA / PRA » ; à confirmer par les essais (WOR-75, WOR-76, WOR-78) |
-| WOR-72 | Recommandations et arbitrages pour une direction | En cours, version 0.2 | Partie « Recommandations à la direction » |
+| WOR-70 | Objectifs RTO / RPO | En cours, version 0.3 | Partie « Objectifs RTO / RPO » ; temps mesurés attendus des essais (WOR-79) |
+| WOR-71 | PCA / PRA | En cours, version 0.3 | Partie « PCA / PRA » ; à confirmer par les essais (WOR-75, WOR-76, WOR-78) |
+| WOR-72 | Recommandations et arbitrages pour une direction | En cours, version 0.3 | Partie « Recommandations à la direction » |
 | WOR-67 | EBIOS RM complet (ateliers 3 à 5) | Rédigé, à faire valider par les coachs | Partie « EBIOS RM », ateliers 3 à 5 |
-| WOR-73 | Relier EBIOS et PCA/PRA à l'architecture et aux essais | En cours | Partie « État d'implémentation » (v0.3) ; résultats des essais à ajouter |
+| WOR-73 | Relier EBIOS et PCA/PRA à l'architecture et aux essais | En cours | Partie « État d'implémentation » (v0.4) ; résultats des essais à ajouter |
 
 ## Décisions en attente avec les autres piliers
 
-La gouvernance décrit le code tel qu'il est au 20/10. Les écarts à trancher avec l'équipe :
+La gouvernance décrit le code tel qu'il est au 21/10. Les écarts à trancher avec l'équipe :
 
 - **API du socle en mémoire** : un redémarrage ou une restauration efface les transactions. La brancher sur PostgreSQL avant les essais (Reza, Michael).
-- **Restauration automatique après une injection**, sans validation humaine ni second signal : à garder pour la démo, ou à encadrer (équipe).
-- **Modèle de détection** à évaluer sur des fenêtres d'attaque (Léa).
+- **Restauration automatique après une injection**, sans validation humaine ni second signal, déclenchée même quand le WAF a bloqué l'injection : à garder pour la démo, ou à encadrer (équipe).
+- **Modèle de détection** : délai de détection des attaques A et B à mesurer (Léa).
+- **Visages enrôlés** : consentement écrit et effacement après la démo (Axel, Cédric).
 - **Attaque B** à diriger vers une route `/v1/…` existante (Axel).
