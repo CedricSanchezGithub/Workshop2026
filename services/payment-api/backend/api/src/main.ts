@@ -26,6 +26,8 @@ import { JdenticonAvatarGenerator } from '../../shared/src/infrastructure/avatar
 import { RegisterUser, RegisterUserError } from '../../shared/src/application/use-cases/RegisterUser.js';
 import { LoginUser, LoginUserError, AccountLockedError } from '../../shared/src/application/use-cases/LoginUser.js';
 import { InMemoryLoginAttemptTracker } from '../../shared/src/infrastructure/security/InMemoryLoginAttemptTracker.js';
+import { HttpFaceDirectory } from '../../shared/src/infrastructure/faces/HttpFaceDirectory.js';
+import { FaceServiceError, NoFaceDetectedError } from '../../shared/src/application/ports/FaceDirectory.js';
 import { GetCurrentUser } from '../../shared/src/application/use-cases/GetCurrentUser.js';
 import { InMemoryBookingQuoteRepository } from '../../shared/src/infrastructure/repositories/InMemoryBookingQuoteRepository.js';
 import { PostgresBookingQuoteRepository } from '../../shared/src/infrastructure/repositories/PostgresBookingQuoteRepository.js';
@@ -64,6 +66,8 @@ const loginAttempts = new InMemoryLoginAttemptTracker(
   Number(process.env.AUTH_LOCK_MINUTES ?? 5) * 60_000,
 );
 const loginUser = new LoginUser(userRepository, sessionRepository, new ScryptPasswordHasher(), loginAttempts);
+// Annuaire des visages (WOR-97) : délégué au service de reconnaissance (WOR-95), réseau interne.
+const faceDirectory = new HttpFaceDirectory(process.env.FACE_SERVICE_URL ?? 'http://face-recognition:8080');
 const getCurrentUser = new GetCurrentUser(userRepository, sessionRepository);
 const chatAssistant = new OpenAIChatAssistant();
 const metrics = new ApiMetrics();
@@ -103,7 +107,11 @@ app.use(cors({ origin: (origin, callback) => {
     return callback(null, localAlias && sameLocalPort);
   } catch { return callback(null, false); }
 }, methods: ['GET', 'POST'], allowedHeaders: ['Content-Type', 'Authorization', 'Idempotency-Key'] }));
-app.use(express.json({ limit: '32kb' }));
+// Corps limité à 32 kB, sauf l'enrôlement facial (image en base64) qui tolère jusqu'à 6 MB.
+const jsonSmall = express.json({ limit: '32kb' });
+const jsonImage = express.json({ limit: '6mb' });
+app.use((request, response, next) =>
+  (request.path === '/v1/admin/faces/enroll' ? jsonImage : jsonSmall)(request, response, next));
 app.use((request, response, next) => {
   if (request.path === '/metrics') return next();
 
@@ -163,6 +171,9 @@ const paymentSchema = z.object({ bookingId: z.string().regex(/^booking_\d+$/).ma
 const registerSchema = z.object({ name: z.string().trim().min(2).max(80), email: z.string().email().max(160), password: z.string().min(8).max(128) });
 const loginSchema = z.object({ email: z.string().email().max(160), password: z.string().min(1).max(128) });
 const adminScalingSchema = z.object({ workerCount: z.number().int().min(1).max(10) }).strict();
+// Enrôlement facial (WOR-97) : image en base64 (data-URL acceptée), ~6 Mo max.
+const enrollFaceSchema = z.object({ email: z.string().email().max(160), imageBase64: z.string().min(1).max(8_000_000) }).strict();
+const revokeFaceSchema = z.object({ email: z.string().email().max(160) }).strict();
 const chatSchema = z.object({ messages: z.array(z.object({ role: z.enum(['user', 'assistant']), content: z.string().trim().min(1).max(1_000) }).strict()).min(1).max(12) }).strict();
 
 type AuthenticatedRequest = Request & { userId?: string; sessionToken?: string };
@@ -234,6 +245,49 @@ app.post('/v1/admin/scaling', authenticateAdmin, async (request: AuthenticatedRe
     const input = adminScalingSchema.parse(request.body);
     await queue.scale(input.workerCount);
     return response.json({ data: await buildAdminOverview() });
+  } catch (error) {
+    return next(error);
+  }
+});
+
+// --- Gestion des habilitations faciales (WOR-97), réservée aux admins ------
+// Les visages sont indexés par l'id (stable, insensible à la sanitisation) côté service ;
+// le back-office fait la correspondance id ↔ compte pour l'affichage.
+app.get('/v1/admin/faces', authenticateAdmin, async (_request, response, next) => {
+  try {
+    const ids = await faceDirectory.list();
+    const enrolled = (await Promise.all(ids.map((id) => userRepository.findById(id))))
+      .filter((user): user is NonNullable<typeof user> => Boolean(user))
+      .map((user) => ({ id: user.id, email: user.email, name: user.name }));
+    return response.json({ data: { enrolled } });
+  } catch (error) {
+    return next(error);
+  }
+});
+
+app.post('/v1/admin/faces/enroll', authenticateAdmin, async (request: AuthenticatedRequest, response, next) => {
+  try {
+    const input = enrollFaceSchema.parse(request.body);
+    const user = await userRepository.findByEmail(input.email.trim().toLowerCase());
+    if (!user) return response.status(404).json({ error: 'USER_NOT_FOUND' });
+    const image = Buffer.from(input.imageBase64.replace(/^data:[^,]+,/, ''), 'base64');
+    const { samples } = await faceDirectory.enroll(user.id, image, 'image/jpeg');
+    audit.write({ event: 'face.enroll', userId: user.id, metadata: { email: user.email, samples } });
+    return response.status(201).json({ data: { email: user.email, samples } });
+  } catch (error) {
+    return next(error);
+  }
+});
+
+// POST (et non DELETE) pour rester compatible avec la politique de méthodes du WAF (CRS).
+app.post('/v1/admin/faces/revoke', authenticateAdmin, async (request: AuthenticatedRequest, response, next) => {
+  try {
+    const { email } = revokeFaceSchema.parse(request.body);
+    const user = await userRepository.findByEmail(email.trim().toLowerCase());
+    if (!user) return response.status(404).json({ error: 'USER_NOT_FOUND' });
+    await faceDirectory.remove(user.id);
+    audit.write({ event: 'face.revoke', userId: user.id, metadata: { email: user.email } });
+    return response.json({ data: { ok: true } });
   } catch (error) {
     return next(error);
   }
@@ -331,6 +385,8 @@ app.use((error: unknown, request: Request, response: Response, _next: NextFuncti
   if (error instanceof IdempotencyConflictError) return response.status(409).json({ error: error.message });
   if (error instanceof PaymentVerificationError || error instanceof RefundPaymentError) return response.status(error.message === 'PAYMENT_NOT_FOUND' ? 404 : 409).json({ error: error.message });
   if (error instanceof ChatAssistantError) return response.status(error.message === 'CHAT_NOT_CONFIGURED' ? 503 : 502).json({ error: 'CHAT_UNAVAILABLE' });
+  if (error instanceof NoFaceDetectedError) return response.status(422).json({ error: 'NO_FACE_DETECTED' });
+  if (error instanceof FaceServiceError) return response.status(502).json({ error: 'FACE_SERVICE_UNAVAILABLE' });
   console.error(error);
   return response.status(500).json({ error: 'INTERNAL_ERROR' });
 });
