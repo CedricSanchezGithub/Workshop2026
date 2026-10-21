@@ -30,6 +30,7 @@ Dashboard : **http://127.0.0.1:8090**. Prérequis : plateforme déployée (`ansi
 - Un incident n'est **résolu** qu'après une transaction complète réussie (connexion → intention de paiement `booking_1` → code de vérification → paiement `succeeded`). Un conteneur redémarré ne suffit pas (sujet §2).
 - Après **2 tentatives** infructueuses : incident `failed` + événement `escalation` (procédure `docs/runbooks/reprise.md`).
 - Une nouvelle alerte du même type pendant un incident en cours est fusionnée : seules les nouvelles IP sont bloquées.
+- **Stabilisation après redémarrage / restauration** : pendant 180 s (`POST_ACTION_GRACE_S`), les nouvelles alertes sont ignorées et journalisées (`alert_suppressed`). payment-api repart vide (en mémoire) : tous les clients se reconnectent en même temps et ce pic, causé par la remédiation elle-même, ressemblerait à un déni de service (mesuré : environ 100 s de perturbation après une restauration).
 
 Mesures sur la plateforme (PC de dev, 2026-10-20) : DoS résolu en **4,6 s** (blocage 4 s + transaction 0,3 s) ; injection résolue en **10,1 s** (blocage, restauration 7,8 s, transaction).
 
@@ -77,4 +78,5 @@ uv sync && uv run pytest        # signature, rejeu, garde-fous, liste fermée, t
 
 - **Limite de connexion de l'API** : payment-api autorise 12 connexions/inscriptions par IP et par 15 min. La sonde du moteur doit se réinscrire après chaque restauration (API en mémoire) ; plusieurs répétitions rapprochées peuvent atteindre la limite et faire échouer la vérification. À traiter côté API (compte de supervision dédié ou exception documentée), décision de l'équipe Développement.
 - Le moteur tourne sur l'hôte : sur un PC Hôte Windows, le lancer depuis WSL2 (comme Ansible).
+- Pendant la stabilisation, une attaque **nouvelle** ne déclenche pas d'incident ; les IP déjà bloquées le restent.
 - Une IP bloquée le reste jusqu'au `waf-unblock-all` (fin de répétition, `scripts/reset-known-good.sh`).

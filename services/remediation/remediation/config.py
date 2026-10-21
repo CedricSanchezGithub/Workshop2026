@@ -42,6 +42,9 @@ ALERT_MAX_AGE_S = int(os.environ.get("ALERT_MAX_AGE_S", 60))
 VERIFY_ATTEMPTS = int(os.environ.get("VERIFY_ATTEMPTS", 6))
 VERIFY_INTERVAL_S = float(os.environ.get("VERIFY_INTERVAL_S", 3))
 MAX_ACTION_ROUNDS = 2  # au-delà : incident en échec, escalade humaine
+# Après un redémarrage / une restauration : alertes ignorées le temps que les clients se reconnectent
+# et que les fenêtres de 60 s de la détection ne contiennent plus ce pic (journalisé alert_suppressed).
+POST_ACTION_GRACE_S = float(os.environ.get("POST_ACTION_GRACE_S", 180))
 MONITOR_INTERVAL_S = float(os.environ.get("MONITOR_INTERVAL_S", 5))
 PROBE_INTERVAL_S = float(os.environ.get("PROBE_INTERVAL_S", 15))
 

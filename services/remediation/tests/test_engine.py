@@ -161,3 +161,23 @@ def test_resolved_event_marks_detector_side():
     [inc] = run(engine, alert("dos"))
     engine.handle(alert("dos", n=9, event="resolved"))
     assert inc.detector_resolved_at is not None
+
+
+def test_alerts_suppressed_after_restore_then_accepted_again(monkeypatch):
+    # Faux DoS provoqué par la restauration (clients qui se reconnectent tous) : ignoré
+    engine, _ = make(probe_results=[True, True])
+    [sqli] = run(engine, alert("sqli"))
+    assert sqli.state == "resolved" and engine.grace_until > 0
+    assert engine.handle(alert("dos", n=2)) is None
+    assert len(engine.incidents) == 1
+    # Après la période de stabilisation, une nouvelle alerte ouvre bien un incident
+    monkeypatch.setattr(config, "POST_ACTION_GRACE_S", 0)
+    engine.grace_until = 0
+    [dos] = run(engine, alert("dos", n=3))
+    assert dos is not None and dos.type == "dos"
+
+
+def test_block_only_does_not_start_grace():
+    engine, _ = make(probe_results=[True, True])
+    run(engine, alert("dos"))
+    assert engine.grace_until == 0
