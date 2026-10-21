@@ -88,12 +88,15 @@ static void updateLed() {
 static void ensureWifi() {
   if (WiFi.status() == WL_CONNECTED) return;
   WiFi.mode(WIFI_STA);
+  Serial.printf("[wifi] connexion a %s...\n", WIFI_SSID);
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
   const unsigned long start = millis();
   while (WiFi.status() != WL_CONNECTED && millis() - start < 15000UL) {
     delay(200);
     updateLed(); // garde la LED vivante pendant la (re)connexion
   }
+  if (WiFi.status() == WL_CONNECTED) Serial.printf("[wifi] OK, IP %s\n", WiFi.localIP().toString().c_str());
+  else Serial.println("[wifi] echec (nouvel essai au prochain cycle)");
 }
 
 static void poll() {
@@ -112,6 +115,7 @@ static void poll() {
       const char* signal = doc["data"]["signal"] | "idle";
       if (seq != lastSeq) {
         lastSeq = seq;
+        Serial.printf("[led] signal=%s seq=%ld\n", signal, seq);
         applySignal(String(signal));
       }
     }
@@ -121,6 +125,8 @@ static void poll() {
 
 void setup() {
   Serial.begin(115200);
+  delay(50);
+  Serial.println("\n[led-indicator] boot (WOR-99)");
   pinMode(GREEN_PIN, OUTPUT);
   pinMode(RED_PIN, OUTPUT);
   setLed(false, false);
