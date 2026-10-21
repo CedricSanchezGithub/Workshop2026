@@ -24,7 +24,8 @@ import { PostgresSessionRepository } from '../../shared/src/infrastructure/repos
 import { ScryptPasswordHasher } from '../../shared/src/infrastructure/security/ScryptPasswordHasher.js';
 import { JdenticonAvatarGenerator } from '../../shared/src/infrastructure/avatars/JdenticonAvatarGenerator.js';
 import { RegisterUser, RegisterUserError } from '../../shared/src/application/use-cases/RegisterUser.js';
-import { LoginUser, LoginUserError } from '../../shared/src/application/use-cases/LoginUser.js';
+import { LoginUser, LoginUserError, AccountLockedError } from '../../shared/src/application/use-cases/LoginUser.js';
+import { InMemoryLoginAttemptTracker } from '../../shared/src/infrastructure/security/InMemoryLoginAttemptTracker.js';
 import { GetCurrentUser } from '../../shared/src/application/use-cases/GetCurrentUser.js';
 import { InMemoryBookingQuoteRepository } from '../../shared/src/infrastructure/repositories/InMemoryBookingQuoteRepository.js';
 import { PostgresBookingQuoteRepository } from '../../shared/src/infrastructure/repositories/PostgresBookingQuoteRepository.js';
@@ -57,7 +58,12 @@ const userRepository = postgresDatabase ? new PostgresUserRepository(postgresDat
 const sessionRepository = postgresDatabase ? new PostgresSessionRepository(postgresDatabase) : new InMemorySessionRepository();
 const adminEmails = new Set((process.env.ADMIN_EMAILS ?? '').split(',').map((email) => email.trim().toLowerCase()).filter(Boolean));
 const registerUser = new RegisterUser(userRepository, sessionRepository, new ScryptPasswordHasher(), new JdenticonAvatarGenerator(), adminEmails);
-const loginUser = new LoginUser(userRepository, sessionRepository, new ScryptPasswordHasher());
+// Anti-bruteforce (WOR-98) : après AUTH_MAX_ATTEMPTS échecs, verrou de AUTH_LOCK_MINUTES (croissant).
+const loginAttempts = new InMemoryLoginAttemptTracker(
+  Number(process.env.AUTH_MAX_ATTEMPTS ?? 2),
+  Number(process.env.AUTH_LOCK_MINUTES ?? 5) * 60_000,
+);
+const loginUser = new LoginUser(userRepository, sessionRepository, new ScryptPasswordHasher(), loginAttempts);
 const getCurrentUser = new GetCurrentUser(userRepository, sessionRepository);
 const chatAssistant = new OpenAIChatAssistant();
 const metrics = new ApiMetrics();
@@ -312,6 +318,14 @@ app.use((error: unknown, request: Request, response: Response, _next: NextFuncti
   if (isDatabaseError(error)) metrics.dbErrorsTotal.inc();
   if (error instanceof z.ZodError) return response.status(400).json({ error: request.path.startsWith('/v1/auth') ? 'INVALID_AUTH_REQUEST' : request.path.startsWith('/v1/admin') ? 'INVALID_ADMIN_REQUEST' : request.path.startsWith('/v1/chat') ? 'INVALID_CHAT_REQUEST' : 'INVALID_PAYMENT_REQUEST', details: error.issues.map((issue) => issue.path.join('.')) });
   if (error instanceof RegisterUserError) return response.status(error.message === 'EMAIL_ALREADY_REGISTERED' ? 409 : 400).json({ error: error.message });
+  if (error instanceof AccountLockedError) {
+    metrics.authLockoutsTotal.inc();
+    const retryAfterSeconds = Math.ceil(error.retryAfterMs / 1000);
+    const email = typeof request.body?.email === 'string' ? request.body.email.trim().toLowerCase() : undefined;
+    audit.write({ event: 'auth.lockout', metadata: { email: email ?? 'unknown', retry_after_s: retryAfterSeconds } });
+    response.setHeader('Retry-After', String(retryAfterSeconds));
+    return response.status(429).json({ error: 'ACCOUNT_LOCKED', retryAfterSeconds });
+  }
   if (error instanceof LoginUserError) return response.status(401).json({ error: error.message });
   if (error instanceof PaymentRequestError) return response.status(error.message === 'BOOKING_NOT_FOUND' ? 404 : 400).json({ error: error.message });
   if (error instanceof IdempotencyConflictError) return response.status(409).json({ error: error.message });
