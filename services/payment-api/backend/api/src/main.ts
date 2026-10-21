@@ -75,6 +75,12 @@ const faceAttempts = new InMemoryLoginAttemptTracker(
   Number(process.env.AUTH_MAX_ATTEMPTS ?? 2),
   Number(process.env.AUTH_LOCK_MINUTES ?? 5) * 60_000,
 );
+// Canal vers l'objet connecté (WOR-100) : dernière transition d'auth, pollée par l'ESP8266.
+// 'idle' | 'recognized' | 'granted' | 'denied' | 'rejected' ; `seq` incrémenté à chaque transition
+// (déclenchement sur front côté firmware). DEVICE_TOKEN (optionnel) protège la lecture.
+let deviceSignal: { signal: string; seq: number } = { signal: 'idle', seq: 0 };
+const setDeviceSignal = (signal: string) => { deviceSignal = { signal, seq: deviceSignal.seq + 1 }; };
+const DEVICE_TOKEN = process.env.DEVICE_TOKEN ?? '';
 const getCurrentUser = new GetCurrentUser(userRepository, sessionRepository);
 const chatAssistant = new OpenAIChatAssistant();
 const metrics = new ApiMetrics();
@@ -337,6 +343,7 @@ app.post('/v1/auth/face-check', authRateLimit, async (request, response, next) =
       const after = faceAttempts.recordFailure(email);
       metrics.faceChecksTotal.inc({ result: 'rejected' });
       audit.write({ event: 'face.rejected', userId: user.id, metadata: { email, score } });
+      setDeviceSignal('rejected');
       if (after.locked) {
         const retryAfterSeconds = Math.ceil(after.retryAfterMs / 1000);
         metrics.authLockoutsTotal.inc();
@@ -350,6 +357,7 @@ app.post('/v1/auth/face-check', authRateLimit, async (request, response, next) =
     metrics.faceChecksTotal.inc({ result: 'recognized' });
     const faceToken = faceChallenge.issue(email);
     audit.write({ event: 'face.recognized', userId: user.id, metadata: { email, score } });
+    setDeviceSignal('recognized');
     return response.json({ data: { status: 'recognized', faceToken } });
   } catch (error) {
     return next(error);
@@ -370,14 +378,26 @@ app.post('/v1/auth/login', authRateLimit, async (request, response, next) => {
     }
     const session = await loginUser.execute({ email: input.email, password: input.password });
     audit.write({ event: 'login.success', userId: session.user.id, metadata: { email } });
+    setDeviceSignal('granted');
     return response.json({ data: session });
   } catch (error) {
     if (error instanceof LoginUserError) {
       metrics.loginFailuresTotal.inc();
       audit.write({ event: 'login.failure', metadata: { reason: 'bad_password' } });
+      setDeviceSignal('denied');
     }
     return next(error);
   }
+});
+
+// Canal pour l'objet connecté (WOR-100) : l'ESP8266 poll ce point pour piloter la LED.
+// Lecture seule, petit corps ; protégé par DEVICE_TOKEN si défini (sinon ouvert sur le PA du groupe).
+app.get('/v1/device/led', (request, response) => {
+  if (DEVICE_TOKEN) {
+    const token = request.header('x-device-token') ?? (typeof request.query.token === 'string' ? request.query.token : '');
+    if (token !== DEVICE_TOKEN) return response.status(401).json({ error: 'DEVICE_UNAUTHORIZED' });
+  }
+  return response.json({ data: deviceSignal });
 });
 
 app.get('/v1/auth/me', authenticate, async (request: AuthenticatedRequest, response) => {
