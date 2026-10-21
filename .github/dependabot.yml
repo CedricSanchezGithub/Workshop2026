@@ -1,0 +1,82 @@
+version: 2
+
+updates:
+  # Node (npm)
+  - package-ecosystem: "npm"
+    directories:
+      - "/services/payment-api"
+      - "/services/dashboard"
+      - "/docs/gouvernance/site"
+      - "/scripts/pdf"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 10
+    groups:
+      npm-minor-patch:
+        update-types: ["minor", "patch"]
+
+  # Python (uv)
+  - package-ecosystem: "uv"
+    directories:
+      - "/ml"
+      - "/rag"
+      - "/services/remediation"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 10
+    groups:
+      uv-minor-patch:
+        update-types: ["minor", "patch"]
+
+  # Python (pip, requirements.txt)
+  - package-ecosystem: "pip"
+    directories:
+      - "/services/face-recognition"
+      - "/ml/lab/mock_api"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    groups:
+      pip-minor-patch:
+        update-types: ["minor", "patch"]
+
+  # Dockerfile base images
+  - package-ecosystem: "docker"
+    directories:
+      - "/docs/gouvernance/site"
+      - "/ml/inference"
+      - "/ml/lab/mock_api"
+      - "/ml/lab/traffic"
+      - "/rag/assistant"
+      - "/services/face-recognition"
+      - "/services/payment-api/infra/docker"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    groups:
+      docker-images:
+        patterns: ["*"]
+
+  # docker-compose images (Vault, Postgres, Prometheus, Loki, Grafana, WAF…)
+  - package-ecosystem: "docker-compose"
+    directories:
+      - "/infra"
+      - "/ml/lab"
+      - "/rag"
+      - "/services/payment-api/infra"
+      - "/docs/gouvernance/site"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    groups:
+      compose-images:
+        patterns: ["*"]
+
+  # GitHub Actions (no workflows yet; picks them up once .github/workflows exists)
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
