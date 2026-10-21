@@ -280,6 +280,9 @@ services:
     environment:
       PORT: "8080"                  # le WAF proxifie vers payment-api:8080
       WEB_ORIGIN: "http://127.0.0.1,http://localhost"
+      # Admin du back-office (habilitations faciales WOR-97) et service de reconnaissance (WOR-95)
+      ADMIN_EMAILS: "admin@resilience-alpha.local"
+      FACE_SERVICE_URL: "http://face-recognition:8080"
     networks:
       - backend      # reçoit le trafic du WAF
       - monitoring   # Prometheus scrape /metrics
@@ -347,6 +350,9 @@ services:
       BACKEND: "http://payment-api:8080"
       PORT: "8080"
       SERVER_NAME: "resilience-alpha"
+      # Autorise les corps JSON non-fichier jusqu'à 8 Mo (enrôlement facial en base64, WOR-97) ;
+      # CRS continue d'inspecter le corps à la recherche d'injections.
+      MODSEC_REQ_BODY_NOFILES_LIMIT: "8388608"
       # Accès nginx sur stdout -> Loki : débit vu par le WAF et URL des requêtes (features ML waf_req_rate,
       # suspicious_char_ratio ; contrat docs/architecture/contrat-observabilite-ia.md §3)
       ACCESSLOG: "/dev/stdout"
