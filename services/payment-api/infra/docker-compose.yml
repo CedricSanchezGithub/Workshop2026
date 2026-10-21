@@ -2,7 +2,7 @@ name: paygo
 
 services:
   postgres:
-    image: postgres:16-alpine
+    image: postgres:18-alpine
     environment:
       POSTGRES_DB: payandgo
       POSTGRES_USER: payandgo
