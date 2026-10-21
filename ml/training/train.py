@@ -18,13 +18,16 @@ import joblib
 import numpy as np
 import pandas as pd
 
-from features.extract import FAMILIES, STEP_S, family_columns
+from features.extract import FAMILIES, STEP_S, UPPER_ONLY, family_columns
 from training.model import FamilyModel
 
 ML = Path(__file__).resolve().parents[1]
 MODEL_PATH = ML / "inference" / "models" / "detector.joblib"
 REPORT = ML / "training" / "report.md"
-CONSECUTIVE = 2
+CONSECUTIVE = 3
+# Seuil IF (quantile du score sur le normal) par famille. Injection plus bas : hors attaque, seule
+# mean_req_bytes y varie, et une requête SQLi vue par le WAF suffit à sortir de l'enveloppe.
+FP_QUANTILE = {"traffic": 0.002, "injection": 0.001}
 TRAIN_SHARE = 0.7
 
 
@@ -118,17 +121,21 @@ def report_md(res: dict, data: dict) -> str:
     return "\n".join(lines)
 
 
+def build(fam: str, kind: str, normal: pd.DataFrame) -> FamilyModel:
+    return FamilyModel(fam, kind, family_columns(fam), fam in UPPER_ONLY).fit(normal, fp_quantile=FP_QUANTILE[fam])
+
+
 def main(paths: list[str]) -> None:
     df = load(paths)
     normal = df[df["label"] == "normal"]
     cut = normal.index[int(len(normal) * TRAIN_SHARE)]
     train, valid_normal = normal.loc[:cut], normal.loc[cut + 1:]
 
-    models = {fam: FamilyModel(fam, kind, family_columns(fam)).fit(train) for fam, kind in FAMILIES.items()}
+    models = {fam: build(fam, kind, train) for fam, kind in FAMILIES.items()}
     res = evaluate(models, df, valid_normal.index)
 
     # Modèle final : réentraîné sur TOUT le normal disponible.
-    final = {fam: FamilyModel(fam, kind, family_columns(fam)).fit(normal) for fam, kind in FAMILIES.items()}
+    final = {fam: build(fam, kind, normal) for fam, kind in FAMILIES.items()}
     MODEL_PATH.parent.mkdir(parents=True, exist_ok=True)
     joblib.dump({"models": final, "consecutive": CONSECUTIVE, "step_s": STEP_S, "trained_at": time.time(),
                  "files": [Path(p).name for p in paths]}, MODEL_PATH)

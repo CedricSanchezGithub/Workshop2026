@@ -1,14 +1,14 @@
 {
   "data": {
     "files": [
-      "platform_normal_01.parquet"
+      "platform_normal_02.parquet"
     ],
-    "windows": 2479,
+    "windows": 2622,
     "counts": {
-      "normal": 2479
+      "normal": 2622
     },
-    "train": 1736,
-    "valid_normal": 743
+    "train": 1836,
+    "valid_normal": 786
   },
   "families": {
     "traffic": {
@@ -25,8 +25,8 @@
         "distinct_ips",
         "top_ip_share"
       ],
-      "trained_on_windows": 1736,
-      "if_threshold": -0.1447,
+      "trained_on_windows": 1836,
+      "if_threshold": -0.1724,
       "false_positive_rate_window": 0.0,
       "false_alerts_on_normal": 0,
       "window_recall_own_type": null,
@@ -48,9 +48,9 @@
         "client_err_ratio",
         "db_error_rate"
       ],
-      "trained_on_windows": 1736,
-      "if_threshold": -0.2383,
-      "false_positive_rate_window": 0.004,
+      "trained_on_windows": 1836,
+      "if_threshold": -0.2713,
+      "false_positive_rate_window": 0.0013,
       "false_alerts_on_normal": 0,
       "window_recall_own_type": null,
       "window_recall_if_only": null,

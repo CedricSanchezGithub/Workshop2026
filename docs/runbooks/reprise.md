@@ -11,7 +11,7 @@ La plateforme RESILIENCE-ALPHA vise une reprise automatique (*zero-touch recover
 
 1. **Collecte** : Prometheus (métriques) et Loki (journaux) collectent en continu.
 2. **Détection** : le détecteur IA calcule toutes les 10 s des features sur une fenêtre glissante de 60 s et les soumet à une Isolation Forest par famille (trafic, injection).
-3. **Décision** : quand une famille est anormale sur deux fenêtres consécutives, le détecteur envoie une alerte signée au moteur de remédiation.
+3. **Décision** : quand une famille est anormale sur trois fenêtres consécutives, le détecteur envoie une alerte signée au moteur de remédiation.
 4. **Action** : le moteur exécute la réponse prévue pour le type d'incident (playbooks Ansible, actions sur conteneurs, règles WAF).
 5. **Vérification** : santé métier + transaction de test réussie + données cohérentes.
 

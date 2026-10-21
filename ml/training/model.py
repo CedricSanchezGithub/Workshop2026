@@ -10,6 +10,11 @@ Deux composantes non supervisées, apprises UNIQUEMENT sur du trafic normal :
    CRS SQLi) ne pèse pas dans ses arbres, et un point très loin hors plage n'est pas isolé plus vite
    que le point normal le plus extrême.
 
+Famille « unilatérale » (upper_only) : seules les hausses comptent. Les z-scores sont ramenés à 0
+sous la médiane du normal, avant l'Isolation Forest comme pour l'enveloppe. Sinon des requêtes plus
+courtes que d'habitude (mean_req_bytes bas) ressemblent autant à une injection que des requêtes plus
+longues, alors qu'une injection ne fait qu'augmenter ces signaux.
+
 Une fenêtre est anormale si l'une des deux composantes la juge anormale. Aucune règle écrite à la
 main : les seuils sont des quantiles / maxima mesurés sur les données normales.
 """
@@ -28,6 +33,7 @@ class FamilyModel:
     family: str
     incident_type: str
     features: list[str]
+    upper_only: bool = False
     center: np.ndarray = field(repr=False, default=None)
     scale: np.ndarray = field(repr=False, default=None)
     forest: IsolationForest = field(repr=False, default=None)
@@ -40,10 +46,11 @@ class FamilyModel:
         return np.log1p(np.clip(X[self.features].to_numpy(dtype=float), 0, None))
 
     def _z(self, T: np.ndarray) -> np.ndarray:
-        return (T - self.center) / self.scale
+        Z = (T - self.center) / self.scale
+        return np.maximum(Z, 0) if self.upper_only else Z
 
     # --- Apprentissage ---------------------------------------------------------------------
-    def fit(self, normal: pd.DataFrame, fp_quantile: float = 0.005, z_margin: float = 1.5,
+    def fit(self, normal: pd.DataFrame, fp_quantile: float = 0.002, z_margin: float = 1.5,
             z_floor: float = 6.0, seed: int = 42) -> "FamilyModel":
         T = self._transform(normal)
         self.center = np.median(T, axis=0)

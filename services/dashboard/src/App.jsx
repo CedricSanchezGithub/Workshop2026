@@ -219,7 +219,7 @@ function Incident({ inc, now }) {
 
 const EVENT_LABEL = {
   incident_detected: "Incident détecté", incident_resolved: "Incident résolu", escalation: "Escalade",
-  alert_received: "Alerte reçue", alert_rejected: "Alerte refusée", detector_resolved: "Détecteur : retour à la normale",
+  alert_received: "Alerte reçue", alert_rejected: "Alerte refusée", alert_suppressed: "Alerte ignorée (stabilisation après restauration)", detector_resolved: "Détecteur : retour à la normale",
   probe: "Transaction de test", component: "Composant", engine_started: "Moteur démarré",
 };
 

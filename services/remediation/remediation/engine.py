@@ -7,6 +7,10 @@ Table de décision figée (docs/attack-scenarios.md) :
   payment-api depuis son image (état sain connu) ; vérifier.
 Un incident n'est « résolu » qu'après une transaction de test réussie. Après MAX_ACTION_ROUNDS
 tentatives infructueuses, il passe en échec et une escalade humaine est journalisée.
+
+Après un redémarrage ou une restauration de payment-api, les nouvelles alertes sont ignorées
+pendant POST_ACTION_GRACE_S : l'API repart vide (en mémoire), tous les clients se reconnectent
+en même temps et ce pic, causé par la remédiation elle-même, ressemble à une attaque.
 """
 
 import asyncio
@@ -61,6 +65,7 @@ class Engine:
         self.run_playbook = run_playbook
         self.protected = protected  # None = adresses de l'hôte lues au moment du blocage
         self.incidents: list[Incident] = []
+        self.grace_until = 0.0  # fin de la période de stabilisation après redémarrage / restauration
         self._tasks: set[asyncio.Task] = set()
 
     # --- Réception -------------------------------------------------------------------------
@@ -84,6 +89,12 @@ class Engine:
             if new and current.state in ("acting", "verifying"):
                 self._spawn(self._block(current, new))
             return current
+
+        if time.time() < self.grace_until:
+            self.bus.emit("alert_suppressed", type=alert.type, alert_id=alert.id, offenders=alert.offenders,
+                          remaining_s=round(self.grace_until - time.time(), 1),
+                          reason="stabilisation après redémarrage / restauration de payment-api")
+            return None
 
         inc = Incident(alert.type, alert.id, alert.score, alert.threshold, list(alert.offenders), alert.top_features)
         self.incidents.append(inc)
@@ -172,6 +183,8 @@ class Engine:
     async def _playbook(self, inc: Incident, action: str, label: str, **params) -> bool:
         step = self._step(inc, action, label, "running")
         res = await self.run_playbook(action, params)
+        if action in ("restart_service", "restore_service"):
+            self.grace_until = max(self.grace_until, time.time() + config.POST_ACTION_GRACE_S)
         self._finish(inc, step, "ok" if res.ok else "failed",
                      f"{res.duration_s} s" + ("" if res.ok else f" — {res.output[-300:]}"))
         return res.ok
