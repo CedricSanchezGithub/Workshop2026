@@ -36,3 +36,9 @@ scrape_configs:
   - job_name: ml-inference
     static_configs:
       - targets: ["ml-inference:8095"]
+
+  # Moteur de remédiation (WOR-38) : tourne sur l'hôte, joint par la passerelle Docker comme
+  # pour ml-inference (incidents, durée de reprise, dernière transaction de test)
+  - job_name: remediation
+    static_configs:
+      - targets: ["host.docker.internal:8090"]
