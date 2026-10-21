@@ -69,6 +69,7 @@ export class ApiMetrics {
   readonly dbErrorsTotal = new CounterMetric('db_errors_total', 'Erreurs d’accès à la base de données.');
   readonly loginFailuresTotal = new CounterMetric('login_failures_total', 'Échecs d’authentification.');
   readonly authLockoutsTotal = new CounterMetric('auth_lockouts_total', 'Verrouillages de compte (anti-bruteforce, WOR-98).');
+  readonly faceChecksTotal = new CounterMetric('face_checks_total', 'Vérifications faciales à la connexion (WOR-96).', ['result']);
   readonly httpRequestDurationSeconds = new HistogramMetric('http_request_duration_seconds', 'Durée de traitement des requêtes HTTP en secondes.', ['route'], [.005, .01, .025, .05, .1, .25, .5, 1, 2.5, 5, 10]);
   readonly httpRequestBytes = new HistogramMetric('http_request_bytes', 'Taille de l’URL et du corps de requête HTTP.', ['route'], [64, 128, 256, 512, 1024, 2048, 4096, 16384]);
 
@@ -86,6 +87,7 @@ export class ApiMetrics {
       this.dbErrorsTotal.render(),
       this.loginFailuresTotal.render(),
       this.authLockoutsTotal.render(),
+      this.faceChecksTotal.render(),
     ].join('\n') + '\n';
   }
 }

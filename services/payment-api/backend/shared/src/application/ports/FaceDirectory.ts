@@ -11,6 +11,8 @@ export class NoFaceDetectedError extends Error {}
 export interface FaceDirectory {
   /** Enrôle (ou ajoute un échantillon pour) l'identifiant. */
   enroll(key: string, image: Buffer, contentType: string): Promise<{ samples: number }>;
+  /** Vérifie si l'image correspond au gabarit enrôlé de l'identifiant. */
+  verify(key: string, image: Buffer, contentType: string): Promise<{ match: boolean; score: number }>;
   /** Liste les identifiants enrôlés. */
   list(): Promise<string[]>;
   /** Supprime les gabarits de l'identifiant (droit à l'effacement). */

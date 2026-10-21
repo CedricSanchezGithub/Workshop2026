@@ -13,7 +13,7 @@
     "db:init": "powershell -ExecutionPolicy Bypass -File ./infra/scripts/db-init.ps1",
     "api:check": "tsc -p backend/tsconfig.json --noEmit",
     "test:api": "node --import tsx --test front/tests/api-smoke.test.ts",
-    "test": "node --import tsx --test front/tests/auth.test.ts front/tests/auth-lockout.test.ts front/tests/payment.test.ts front/tests/chat.test.ts front/tests/metrics.test.ts front/tests/structure.test.ts"
+    "test": "node --import tsx --test front/tests/auth.test.ts front/tests/auth-lockout.test.ts front/tests/face-challenge.test.ts front/tests/payment.test.ts front/tests/chat.test.ts front/tests/metrics.test.ts front/tests/structure.test.ts"
   },
   "dependencies": {
     "@types/swagger-ui-express": "^4.1.8",
