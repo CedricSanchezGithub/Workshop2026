@@ -32,9 +32,21 @@ static bool ledPhase = false;
 static long lastSeq = -1;
 static unsigned long lastPoll = 0;
 
+// LED bicolore 3 broches : les deux couleurs sur GREEN_PIN/RED_PIN, la 3e broche en commun.
+//   COMMON_ANODE 0 (défaut) : cathode commune au GND  -> allumage sur niveau HAUT
+//   COMMON_ANODE 1           : anode commune au 3V3    -> allumage sur niveau BAS (logique inversée)
+#ifndef COMMON_ANODE
+#define COMMON_ANODE 0
+#endif
+
 static void setLed(bool green, bool red) {
+#if COMMON_ANODE
+  digitalWrite(GREEN_PIN, green ? LOW : HIGH);
+  digitalWrite(RED_PIN, red ? LOW : HIGH);
+#else
   digitalWrite(GREEN_PIN, green ? HIGH : LOW);
   digitalWrite(RED_PIN, red ? HIGH : LOW);
+#endif
 }
 
 static void applySignal(const String& signal) {
