@@ -2,7 +2,7 @@
 # Contexte de construction : docs/gouvernance (le site lit les .md du dossier parent).
 #   docker compose -f docs/gouvernance/site/docker-compose.yml up --build
 
-FROM node:22-alpine AS build
+FROM node:26-alpine AS build
 WORKDIR /gouvernance/site
 COPY site/package.json site/package-lock.json ./
 RUN npm ci --no-audit --no-fund
