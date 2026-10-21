@@ -28,6 +28,10 @@ export async function registerUser(input) {
   return session;
 }
 
+export async function faceCheck(email, imageBase64) {
+  return request('/v1/auth/face-check', { method: 'POST', body: JSON.stringify({ email, imageBase64 }) });
+}
+
 export async function loginUser(input) {
   const session = await request('/v1/auth/login', { method: 'POST', body: JSON.stringify(input) });
   saveAuthSession(session);

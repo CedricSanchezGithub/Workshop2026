@@ -19,6 +19,17 @@ export class HttpFaceDirectory implements FaceDirectory {
     return { samples: data.samples ?? 0 };
   }
 
+  async verify(key: string, image: Buffer, contentType: string): Promise<{ match: boolean; score: number }> {
+    const form = new FormData();
+    form.set('user', key);
+    form.set('image', new Blob([new Uint8Array(image)], { type: contentType }), 'face');
+    const response = await fetch(`${this.baseUrl}/verify`, { method: 'POST', body: form });
+    if (response.status === 422) throw new NoFaceDetectedError('NO_FACE_DETECTED');
+    if (!response.ok) throw new FaceServiceError(`FACE_SERVICE_${response.status}`);
+    const data = (await response.json()) as { match?: boolean; score?: number };
+    return { match: data.match ?? false, score: data.score ?? 0 };
+  }
+
   async list(): Promise<string[]> {
     const response = await fetch(`${this.baseUrl}/users`);
     if (!response.ok) throw new FaceServiceError(`FACE_SERVICE_${response.status}`);

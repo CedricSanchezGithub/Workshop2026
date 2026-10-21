@@ -28,6 +28,7 @@ import { LoginUser, LoginUserError, AccountLockedError } from '../../shared/src/
 import { InMemoryLoginAttemptTracker } from '../../shared/src/infrastructure/security/InMemoryLoginAttemptTracker.js';
 import { HttpFaceDirectory } from '../../shared/src/infrastructure/faces/HttpFaceDirectory.js';
 import { FaceServiceError, NoFaceDetectedError } from '../../shared/src/application/ports/FaceDirectory.js';
+import { InMemoryFaceChallenge } from '../../shared/src/infrastructure/security/InMemoryFaceChallenge.js';
 import { GetCurrentUser } from '../../shared/src/application/use-cases/GetCurrentUser.js';
 import { InMemoryBookingQuoteRepository } from '../../shared/src/infrastructure/repositories/InMemoryBookingQuoteRepository.js';
 import { PostgresBookingQuoteRepository } from '../../shared/src/infrastructure/repositories/PostgresBookingQuoteRepository.js';
@@ -68,6 +69,12 @@ const loginAttempts = new InMemoryLoginAttemptTracker(
 const loginUser = new LoginUser(userRepository, sessionRepository, new ScryptPasswordHasher(), loginAttempts);
 // Annuaire des visages (WOR-97) : délégué au service de reconnaissance (WOR-95), réseau interne.
 const faceDirectory = new HttpFaceDirectory(process.env.FACE_SERVICE_URL ?? 'http://face-recognition:8080');
+// MFA faciale (WOR-96) : défi à usage unique + verrou de la phase d'identification (même politique que WOR-98).
+const faceChallenge = new InMemoryFaceChallenge();
+const faceAttempts = new InMemoryLoginAttemptTracker(
+  Number(process.env.AUTH_MAX_ATTEMPTS ?? 2),
+  Number(process.env.AUTH_LOCK_MINUTES ?? 5) * 60_000,
+);
 const getCurrentUser = new GetCurrentUser(userRepository, sessionRepository);
 const chatAssistant = new OpenAIChatAssistant();
 const metrics = new ApiMetrics();
@@ -110,8 +117,9 @@ app.use(cors({ origin: (origin, callback) => {
 // Corps limité à 32 kB, sauf l'enrôlement facial (image en base64) qui tolère jusqu'à 6 MB.
 const jsonSmall = express.json({ limit: '32kb' });
 const jsonImage = express.json({ limit: '6mb' });
+const imageBodyPaths = new Set(['/v1/admin/faces/enroll', '/v1/auth/face-check']);
 app.use((request, response, next) =>
-  (request.path === '/v1/admin/faces/enroll' ? jsonImage : jsonSmall)(request, response, next));
+  (imageBodyPaths.has(request.path) ? jsonImage : jsonSmall)(request, response, next));
 app.use((request, response, next) => {
   if (request.path === '/metrics') return next();
 
@@ -169,7 +177,9 @@ app.use('/docs', swaggerUi.serve, swaggerUi.setup(openapiDocument, { customSiteT
 
 const paymentSchema = z.object({ bookingId: z.string().regex(/^booking_\d+$/).max(80), amountCents: z.number().int().positive().max(2_000_000), currency: z.literal('EUR'), paymentMethod: z.object({ token: z.string().regex(/^pm_mock_[a-z0-9-]{12,128}$/), last4: z.string().regex(/^\d{4}$/), brand: z.enum(['visa', 'mastercard', 'amex', 'other']), email: z.string().email() }).strict() }).strict();
 const registerSchema = z.object({ name: z.string().trim().min(2).max(80), email: z.string().email().max(160), password: z.string().min(8).max(128) });
-const loginSchema = z.object({ email: z.string().email().max(160), password: z.string().min(1).max(128) });
+const loginSchema = z.object({ email: z.string().email().max(160), password: z.string().min(1).max(128), faceToken: z.string().max(64).optional() });
+// Vérification faciale (WOR-96) : identifiant + image caméra en base64.
+const faceCheckSchema = z.object({ email: z.string().email().max(160), imageBase64: z.string().min(1).max(8_000_000) }).strict();
 const adminScalingSchema = z.object({ workerCount: z.number().int().min(1).max(10) }).strict();
 // Enrôlement facial (WOR-97) : image en base64 (data-URL acceptée), ~6 Mo max.
 const enrollFaceSchema = z.object({ email: z.string().email().max(160), imageBase64: z.string().min(1).max(8_000_000) }).strict();
@@ -302,12 +312,70 @@ app.post('/v1/auth/register', authRateLimit, async (request, response, next) => 
   }
 });
 
+// Étape d'identification faciale (WOR-96) : entre l'identifiant et le mot de passe.
+// Reconnu → jeton de défi à présenter au login ; sinon 401 (et verrou après 2 échecs).
+// Les événements face.recognized / face.rejected alimentent l'objet connecté (WOR-100).
+app.post('/v1/auth/face-check', authRateLimit, async (request, response, next) => {
+  try {
+    const input = faceCheckSchema.parse(request.body);
+    const email = input.email.trim().toLowerCase();
+    const lock = faceAttempts.status(email);
+    if (lock.locked) {
+      const retryAfterSeconds = Math.ceil(lock.retryAfterMs / 1000);
+      response.setHeader('Retry-After', String(retryAfterSeconds));
+      return response.status(429).json({ error: 'ACCOUNT_LOCKED', retryAfterSeconds });
+    }
+    const user = await userRepository.findByEmail(email);
+    const enrolled = user ? (await faceDirectory.list()).includes(user.id) : false;
+    if (!user || !enrolled) {
+      // Aucun visage enrôlé : la MFA faciale ne s'applique pas, on passe au mot de passe.
+      return response.json({ data: { status: 'not_required' } });
+    }
+    const image = Buffer.from(input.imageBase64.replace(/^data:[^,]+,/, ''), 'base64');
+    const { match, score } = await faceDirectory.verify(user.id, image, 'image/jpeg');
+    if (!match) {
+      const after = faceAttempts.recordFailure(email);
+      metrics.faceChecksTotal.inc({ result: 'rejected' });
+      audit.write({ event: 'face.rejected', userId: user.id, metadata: { email, score } });
+      if (after.locked) {
+        const retryAfterSeconds = Math.ceil(after.retryAfterMs / 1000);
+        metrics.authLockoutsTotal.inc();
+        audit.write({ event: 'auth.lockout', metadata: { email, phase: 'face', retry_after_s: retryAfterSeconds } });
+        response.setHeader('Retry-After', String(retryAfterSeconds));
+        return response.status(429).json({ error: 'ACCOUNT_LOCKED', retryAfterSeconds });
+      }
+      return response.status(401).json({ error: 'FACE_NOT_RECOGNIZED' });
+    }
+    faceAttempts.reset(email);
+    metrics.faceChecksTotal.inc({ result: 'recognized' });
+    const faceToken = faceChallenge.issue(email);
+    audit.write({ event: 'face.recognized', userId: user.id, metadata: { email, score } });
+    return response.json({ data: { status: 'recognized', faceToken } });
+  } catch (error) {
+    return next(error);
+  }
+});
+
 app.post('/v1/auth/login', authRateLimit, async (request, response, next) => {
   try {
     const input = loginSchema.parse(request.body);
-    return response.json({ data: await loginUser.execute(input) });
+    const email = input.email.trim().toLowerCase();
+    const user = await userRepository.findByEmail(email);
+    // Si un visage est enrôlé, exiger un jeton de défi facial valide (WOR-96).
+    if (user && (await faceDirectory.list()).includes(user.id)) {
+      if (!input.faceToken || !faceChallenge.consume(email, input.faceToken)) {
+        audit.write({ event: 'login.failure', userId: user.id, metadata: { email, reason: 'face_required' } });
+        return response.status(401).json({ error: 'FACE_VERIFICATION_REQUIRED' });
+      }
+    }
+    const session = await loginUser.execute({ email: input.email, password: input.password });
+    audit.write({ event: 'login.success', userId: session.user.id, metadata: { email } });
+    return response.json({ data: session });
   } catch (error) {
-    if (error instanceof LoginUserError) metrics.loginFailuresTotal.inc();
+    if (error instanceof LoginUserError) {
+      metrics.loginFailuresTotal.inc();
+      audit.write({ event: 'login.failure', metadata: { reason: 'bad_password' } });
+    }
     return next(error);
   }
 });
