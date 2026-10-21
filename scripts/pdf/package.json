@@ -9,6 +9,6 @@
   },
   "dependencies": {
     "markdown-it": "^14.3.3",
-    "puppeteer-core": "^23.11.1"
+    "puppeteer-core": "^25.14.0"
   }
 }
