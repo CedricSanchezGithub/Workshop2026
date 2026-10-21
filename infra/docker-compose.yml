@@ -280,7 +280,8 @@ services:
     user: node                      # non-root (durcissement WOR-63)
     environment:
       PORT: "8080"                  # le WAF proxifie vers payment-api:8080
-      WEB_ORIGIN: "http://127.0.0.1,http://localhost"
+      # Origines du front (serveur de dev Vite) autorisées en CORS pour la démo
+      WEB_ORIGIN: "http://localhost:5173,http://127.0.0.1:5173"
       # Admin du back-office (habilitations faciales WOR-97) et service de reconnaissance (WOR-95)
       ADMIN_EMAILS: "admin@resilience-alpha.local"
       FACE_SERVICE_URL: "http://face-recognition:8080"
