@@ -2,7 +2,7 @@
 
 > **Statut : cible.** Ce document décrit ce que l'équipe vise et a décidé, pas ce qui est déjà codé. L'état réel du code est suivi dans `constat/etat-implementation.md`.
 
-> Ticket : WOR-71 · Responsable : Cédric · Version 0.2 du 20/10/2026
+> Ticket : WOR-71 · Responsable : Cédric · Version 0.3 du 21/10/2026
 >
 > **Statut :** les actions automatiques décrites sont celles du code (moteur de remédiation `services/remediation/`, playbooks `ansible/playbooks/remediation/`), relevées dans `constat/etat-implementation.md` v0.3. Chaque fiche sera confirmée après les essais (§9). Chaque fiche se lit seule : l'assistant RAG peut la citer isolément.
 
@@ -43,14 +43,14 @@ Les seuils viennent du coût d'un arrêt (`services-critiques.md`).
 | **N2 — Cellule de crise** | Service non rétabli à 30 min, **ou** perte de données confirmée, **ou** compromission du moteur de remédiation | Directeur de crise, RSSI, conformité, communication | G3 |
 | **N3 — Crise majeure** | Service non rétabli à 2 h, **ou** perte du PC Hôte | Direction générale | G4 |
 
-**Règle de l'automate :** l'automate fait **au plus 2 tentatives par incident** (action puis vérification). Après 2 échecs, il s'arrête, marque l'incident en échec et émet une escalade vers l'opérateur (N1, `docs/runbooks/reprise.md`). Une nouvelle alerte du même type pendant un incident en cours est fusionnée : seules les nouvelles sources sont bloquées. Il n'y a pas de limite d'un incident à l'autre.
+**Règle de l'automate :** l'automate fait **au plus 2 tentatives par incident** (action puis vérification). Après 2 échecs, il s'arrête, marque l'incident en échec et émet une escalade vers l'opérateur (N1, `docs/runbooks/reprise.md`). Une nouvelle alerte du même type pendant un incident en cours est fusionnée : seules les nouvelles sources sont bloquées. Il n'y a pas de limite d'un incident à l'autre. Après un redémarrage ou une restauration, le moteur **ignore toute nouvelle alerte pendant 180 s** (afflux de reconnexions des clients) ; il la journalise (`alert_suppressed`) sans agir.
 
 ## 4. Fiches scénarios
 
 ### Fiche S1 — Déni de service sur l'API de paiement (attaque A)
 
 - **Risque EBIOS :** R1 (hacktiviste, ER1) · gravité G4 si non traité
-- **Signaux :** alerte ML de la famille `traffic` (débit, latence, erreurs, part de la première IP), après 2 fenêtres anormales consécutives
+- **Signaux :** alerte ML de la famille `traffic` (débit, latence, erreurs, part de la première IP), après 3 fenêtres anormales consécutives
 - **Actions automatiques :**
   1. **Blocage complet (403) au WAF** des sources qui pèsent au moins 20 % du trafic suspect ; la liste est rechargée à chaud
   2. Transaction de test ; si elle échoue, redémarrage de l'API
@@ -66,7 +66,7 @@ Les seuils viennent du coût d'un arrêt (`services-critiques.md`).
 ### Fiche S2 — Injection applicative et altération de données (attaque B)
 
 - **Risque EBIOS :** R2 (cybercriminel, ER2) · gravité G4
-- **Signaux :** alerte ML de la famille `injection` (motifs d'injection et blocages du WAF dans les journaux), après 2 fenêtres anormales consécutives
+- **Signaux :** alerte ML de la famille `injection` (motifs d'injection et blocages du WAF dans les journaux), après 3 fenêtres anormales consécutives. Une seule requête d'injection bloquée par le WAF suffit à la déclencher
 - **Actions automatiques :**
   1. Blocage complet (403) de la source au WAF
   2. Constat d'intégrité : appel à `/health` (qui répond toujours « ok » : ce n'est pas un vrai contrôle)
@@ -80,21 +80,24 @@ Les seuils viennent du coût d'un arrêt (`services-critiques.md`).
   - La vulnérabilité est toujours dans le code : le WAF n'est qu'un pansement
   - Une porte dérobée a pu être déposée ; restaurer les données ne la supprime pas
   - Une alerte à tort efface quand même toutes les transactions (voir S4)
+  - Une tentative d'injection que le WAF a bloquée déclenche quand même la restauration, donc la perte des transactions
+  - Pendant les 180 s qui suivent la restauration, une nouvelle attaque n'est pas traitée automatiquement : l'opérateur surveille le tableau de bord
   - Sans export manuel, les preuves de l'attaque restent dans Loki, mais rien ne les protège d'une remise à l'état sain
 
 ### Fiche S3 — Panne d'un service sans attaque
 
-- **Couvre :** arrêt brutal d'un conteneur, saturation mémoire, base injoignable (testé par le chaos engineering, WOR-76)
+- **Couvre :** arrêt brutal d'un conteneur, saturation mémoire, base injoignable (testé par le chaos engineering, WOR-76), service de reconnaissance faciale indisponible (l'administrateur enrôlé ne peut plus se connecter au back-office)
 - **Signaux :** contrôle de santé en échec, métriques absentes
 - **Actions :** Docker Compose relance le conteneur (`healthcheck`) ; sinon, l'opérateur applique le runbook
 - **Objectif :** RTO ≤ 5 min · RPO = 0
 - **Escalade :** pas d'action automatique : le moteur ne réagit qu'aux alertes ML. L'opérateur relance le service (`docs/runbooks/reprise.md`)
-- **Risques résiduels :** une cause profonde (disque plein, fuite mémoire) fera revenir la panne
+- **Risques résiduels :** une cause profonde (disque plein, fuite mémoire) fera revenir la panne ; aucune connexion de secours au back-office n'est prévue si la reconnaissance faciale reste indisponible
 
 ### Fiche S4 — Remédiation déclenchée à tort (faux positif du modèle ML)
 
 - **Risque :** non intentionnel, cité dans `ebios-rm.md`
 - **Signaux :** incident ouvert sans attaque en cours, sources bloquées qui sont des clients légitimes
+- **Déjà survenu :** le 21/10 entre 12 h 36 et 13 h 34, sur du trafic légitime, 2 fausses alertes d'injection ont chacune déclenché une restauration (`ml/training/README.md`). Le détecteur a été réglé ensuite (3 fenêtres, seuil plus strict) : ce scénario reste possible, mais moins fréquent
 - **Ce que fait le code :** une seule alerte ML suffit à déclencher toutes les actions, y compris la restauration. Il n'y a pas de second signal exigé (l'alerte combine déjà deux méthodes de détection, mais sur les mêmes données)
 - **Conduite à tenir :** l'opérateur lève les blocages à tort (`waf-unblock-all.yml`) et note l'incident pour le réentraînement du modèle
 - **Risques résiduels :** coupure provoquée par la défense elle-même ; après une fausse alerte d'injection, **perte de toutes les transactions**. La règle des deux signaux reste recommandée pour la production (`recommandations.md` REC-3)
@@ -194,3 +197,5 @@ Le plan est mis à jour après chaque test et après chaque incident (retour d'e
 1. Restauration après une injection : garder la recréation automatique (perte des transactions) ou ajouter une validation humaine et une vraie restauration de base : équipe, Cédric.
 2. Brancher l'API du socle sur PostgreSQL et sauvegarder avant chaque essai : Reza, Michael.
 3. Levée automatique des blocages, limite entre incidents, export des preuves avant restauration : Michael.
+4. Ne pas restaurer quand le WAF a bloqué toutes les requêtes d'injection : Michael, Léa.
+5. Connexion de secours au back-office si la reconnaissance faciale est indisponible : Axel, Michael.

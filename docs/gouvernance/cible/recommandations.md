@@ -2,7 +2,7 @@
 
 > **Statut : cible.** Ce document décrit ce que l'équipe vise et a décidé, pas ce qui est déjà codé. L'état réel du code est suivi dans `constat/etat-implementation.md`.
 
-> Ticket : WOR-72 · Responsable : Cédric · Version 0.2 du 20/10/2026
+> Ticket : WOR-72 · Responsable : Cédric · Version 0.3 du 21/10/2026
 >
 > Synthèse des autres documents de `cible/`. Les preuves seront renseignées après les essais (WOR-79) ; d'ici là, elles sont marquées *à mesurer*.
 
@@ -27,7 +27,7 @@ Au 20/10, la chaîne détection → remédiation → vérification est codée, m
 | **Vitesse ou preuves** | Restaurer au plus vite ; preuves exportées à la main (`scripts/export-logs.sh`) | Bloquer la reprise tant que la copie n'est pas faite | Garder le temps de reprise court | Si l'export est oublié, une remise à l'état sain efface les preuves |
 | **Scénario principal de la démo** | Déni de service (risque R1) ; injection en second scénario | Une seule attaque | R1 est le risque le plus élevé ; le second scénario montre que la réponse dépend du type d'incident | Deux chaînes de remédiation à construire et tester |
 | **Hébergement** | Tout sur un hôte, sans dépendance à un cloud | Services managés | Imposé par le cadre du projet ; évite aussi le risque lié à un prestataire | Point de défaillance unique, assumé et documenté |
-| **Restauration après injection** | Retour à l'état de départ : recréation du conteneur de l'API | Snapshot et rejeu des transactions légitimes | Simple et rapide à démontrer | **Toutes les transactions sont perdues** : RPO = 0 non tenu (REC-6) |
+| **Restauration après injection** | Retour à l'état de départ : recréation du conteneur de l'API | Snapshot et rejeu des transactions légitimes | Simple et rapide à démontrer | **Toutes les transactions sont perdues** : RPO = 0 non tenu (REC-6). Et une tentative d'injection bloquée par le WAF déclenche quand même la restauration |
 | **Référentiels** | DORA, EBIOS RM ; NIS2 en grille de lecture | PCI DSS | Aucune donnée de carte manipulée | — |
 
 ## 2. Recommandations
@@ -67,11 +67,11 @@ Chaque recommandation repose sur un élément **vérifiable**, issu de nos essai
 | Dans le démonstrateur | En production |
 |---|---|
 | Un seul hôte, sauvegardes locales | Deux sites, sauvegardes hors site et immuables |
-| Un modèle ML entraîné sur quelques dizaines de minutes de trafic | Plusieurs semaines de données réelles, réentraînement régulier, suivi de la dérive du modèle |
+| Un modèle ML entraîné sur 7,3 h de trafic de la plateforme | Plusieurs semaines de données réelles, réentraînement régulier, suivi de la dérive du modèle |
 | Deux scénarios d'attaque, joués par l'équipe | Programme de tests annuel, tests d'intrusion par des testeurs indépendants (TLPT si l'entité est désignée) |
 | Notification décrite sur papier | Procédure exercée, astreinte conformité, modèles de rapports ACPR |
 | Aucun contrat avec les prestataires TIC | Registre d'information, clauses DORA, plans de sortie (REC-11) |
-| Données fictives | Analyse d'impact sur la protection des données (AIPD) avant de traiter des données réelles |
+| Données fictives, sauf les visages des membres de l'équipe enrôlés pour la double authentification (consentement écrit, effacement après la démo) | Analyse d'impact sur la protection des données (AIPD) avant de traiter des données réelles, obligatoire pour la biométrie (RGPD art. 9 et 35) ; double authentification proposée aussi aux clients |
 | Rôles fictifs (directeur de crise, RSSI, DPO) | Rôles nommés, suppléants, exercices de crise deux fois par an |
 | Hypothèses financières fictives | Analyse d'impact sur l'activité menée avec les métiers et la finance |
 | Gouvernance portée par l'équipe projet | Cadre de risque TIC approuvé par l'organe de direction, comme l'exige DORA (art. 5) |
