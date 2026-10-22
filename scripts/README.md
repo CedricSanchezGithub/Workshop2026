@@ -19,6 +19,12 @@
 
       scripts/export-logs.sh [--since 1h] [--containers waf,vault] [--filter '|~ "denied"']
 
+- `demo-led.sh` — prépare l'objet connecté de la consigne additionnelle 1 (LED ESP8266) : publie
+  le WAF sur l'IP WiFi du PC Hôte, flashe la carte avec la bonne URL, teste la LED sans caméra.
+  Pas-à-pas complet : `docs/demo-mfa-led.md`.
+
+      scripts/demo-led.sh publish|flash|test|status|local [HOST_IP]
+
 - `pdf/` — génère les PDF des dossiers à partir des .md de `docs/` (aujourd'hui le dossier de
   gouvernance), dans `livrables/`. Utilise le Chrome ou l'Edge installé (`CHROME_PATH` sinon).
 

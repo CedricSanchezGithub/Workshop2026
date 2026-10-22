@@ -1,131 +1,99 @@
-# Checklist démo — MFA faciale + LED ESP8266 (consigne additionnelle 1)
+# Démo MFA faciale + LED ESP8266 (consigne additionnelle 1)
 
-Pas-à-pas pour monter la démo en local sur le **PC Hôte** et l'**ESP8266**, sans assistance.
-Toutes les commandes se lancent depuis la racine du dépôt, sauf indication.
+## Le principe
 
-> ⚠️ Le PC Hôte et l'ESP8266 doivent être sur **le même WiFi** (le PA du groupe, ex.
-> `RESILIENCE-G6`, ou un hotspot comme `HONOR400`). Repérez l'IP du PC Hôte sur ce réseau :
-> ```bash
-> hostname -I          # ou : ip -brief addr show wlp115s0
-> ```
-> Notez-la : c'est `<HOST_IP>` dans la suite (ex. `172.25.117.190`).
+Le back-office demande l'email, puis le visage, puis le mot de passe. Chaque étape change un
+« signal » côté API ; l'ESP8266 lit ce signal toutes les 0,4 s et allume la LED en conséquence.
 
-## 1. Déployer la plateforme, WAF publié sur le réseau du groupe
-
-Par défaut le WAF n'écoute que sur `127.0.0.1`. Pour que l'ESP l'atteigne, publiez-le sur
-`<HOST_IP>` :
-
-```bash
-# Détecte automatiquement l'IP du PC Hôte (NE PAS écrire <HOST_IP> en dur dans .env !)
-HOST_IP=$(ip route get 1.1.1.1 | awk '{print $7; exit}')
-grep -q '^WAF_BIND=' infra/.env \
-  && sed -i "s/^WAF_BIND=.*/WAF_BIND=$HOST_IP/" infra/.env \
-  || echo "WAF_BIND=$HOST_IP" >> infra/.env
-grep '^WAF_BIND' infra/.env                                   # doit afficher une IP, pas <HOST_IP>
-cd ansible && ansible-playbook playbooks/deploy.yml && cd ..  # idempotent, réensemence la blocklist WAF
+```
+Navigateur (PC Hôte, caméra USB)          ESP8266 (même WiFi)
+        │ email → visage → mot de passe          │ GET /v1/device/led toutes les 0,4 s
+        ▼                                         ▼
+      WAF  http://<IP du PC Hôte>:8080  ◄─────────┘
+        ▼
+   back-office (API) ──► reconnaissance faciale
 ```
 
-Vérifier : `curl -s http://<HOST_IP>:8080/v1/device/led` → `{"data":{"signal":"idle","seq":0}}`.
-
-> Toujours passer par `deploy.yml` (il crée `blocked-ips.txt` du WAF) — un `docker compose up`
-> seul laisse le WAF en échec.
-
-## 2. Créer un admin et enrôler un visage
-
-```bash
-HOST=http://<HOST_IP>:8080
-# compte admin (email dans ADMIN_EMAILS du compose : admin@resilience-alpha.local)
-curl -s -X POST $HOST/v1/auth/register -H 'Content-Type: application/json' \
-  -d '{"name":"Admin","email":"admin@resilience-alpha.local","password":"PayGo!123"}'
-TOKEN=$(curl -s -X POST $HOST/v1/auth/login -H 'Content-Type: application/json' \
-  -d '{"email":"admin@resilience-alpha.local","password":"PayGo!123"}' | python3 -c "import sys,json;print(json.load(sys.stdin)['data']['token'])")
-# enrôler le visage (photo nette de l'opérateur, en base64)
-printf '{"email":"admin@resilience-alpha.local","imageBase64":"%s"}' "$(base64 -w0 visage.jpg)" \
-  | curl -s -X POST $HOST/v1/admin/faces/enroll -H "Authorization: Bearer $TOKEN" \
-    -H 'Content-Type: application/json' -d @-
-curl -s $HOST/v1/admin/faces -H "Authorization: Bearer $TOKEN"   # doit lister le compte
-```
-
-Enrôler **2–3 photos** du même visage améliore la robustesse.
-
-## 3. Flasher l'ESP8266
-
-Câblage LED bicolore (cathode commune) : **vert → D1 (GPIO5)**, **rouge → D2 (GPIO4)**,
-cathode → **GND** via une résistance ~330 Ω par anode.
-
-```bash
-cd iot/led-indicator
-cp include/config.example.h include/config.h
-# éditer include/config.h :
-#   WIFI_SSID     "<SSID du PA>"
-#   WIFI_PASSWORD "<mot de passe>"
-#   LED_ENDPOINT  "http://<HOST_IP>:8080/v1/device/led"
-~/.local/bin/pio run -t upload        # compile + flash (carte sur /dev/ttyUSB0)
-```
-
-Si `/dev/ttyUSB0` est absent alors que la carte est branchée (puce CH340) : voir *Dépannage*.
-
-Contrôler le démarrage (lecture série directe, le moniteur PlatformIO exige un terminal) :
-
-```bash
-python3 - <<'PY'
-import serial, time
-s = serial.Serial('/dev/ttyUSB0', 115200, timeout=0.3)
-s.dtr=False; s.rts=True; time.sleep(0.15); s.rts=False     # reset
-end=time.time()+15
-while time.time()<end:
-    l=s.readline().decode('utf-8','replace').rstrip()
-    if l.strip(): print(l)
-PY
-# attendu : [led-indicator] boot ... / [wifi] OK, IP ...
-```
-
-## 4. Dérouler la démo
-
-Lancer l'interface (front Vite pointant sur le WAF, origine CORS déjà autorisée) :
-
-```bash
-scripts/demo-start.sh        # ou : scripts/demo-start.sh <HOST_IP>
-```
-
-1. Ouvrir **http://localhost:5173** dans un navigateur **sur le PC Hôte** (la caméra USB y est
-   branchée). ⚠️ Bien ouvrir `localhost` : `getUserMedia` est bloqué sur une IP en http.
-2. Saisir l'**identifiant** (`admin@resilience-alpha.local`) → la **caméra s'active**.
-3. Regarder la caméra, **Confirmer mon identité** :
-   - visage **reconnu** → **LED vert clignotant**, le champ **mot de passe** apparaît ;
-   - visage **non reconnu** → **LED rouge fixe 30 s**, identifiant remis à vide (1 réessai puis
-     blocage 5 min).
-4. Saisir le mot de passe :
-   - **correct** → **LED vert fixe 30 s**, accès au back-office ;
-   - **erroné** → **LED rouge clignote 10×**, retour à l'identification.
-
-### Sans navigateur (vérification rapide en ligne de commande)
-
-```bash
-# face-check (reconnu) puis login : la LED doit passer vert clignotant puis vert fixe
-FT=$(printf '{"email":"admin@resilience-alpha.local","imageBase64":"%s"}' "$(base64 -w0 visage.jpg)" \
-  | curl -s -X POST $HOST/v1/auth/face-check -H 'Content-Type: application/json' -d @- \
-  | python3 -c "import sys,json;print(json.load(sys.stdin)['data']['faceToken'])")
-curl -s -X POST $HOST/v1/auth/login -H 'Content-Type: application/json' \
-  -d "{\"email\":\"admin@resilience-alpha.local\",\"password\":\"PayGo!123\",\"faceToken\":\"$FT\"}"
-curl -s $HOST/v1/device/led       # signal=granted (la LED suit)
-```
-
-## 5. Dépannage
-
-| Symptôme | Cause / solution |
+| Ce qui se passe | LED |
 |---|---|
-| `curl http://<HOST_IP>:8080/...` ne répond pas | `WAF_BIND` pas sur `<HOST_IP>` → étape 1 ; vérifier le pare-feu du PC Hôte |
-| Pas de `/dev/ttyUSB0` (carte branchée) | `brltty` capte la puce CH340 : `sudo apt remove brltty` puis rebrancher |
-| Flash « Failed to connect » | maintenir **FLASH**, appuyer **RST**, relâcher RST puis FLASH ; vérifier le câble (data, pas charge) |
-| `[wifi] echec` en série | SSID/mot de passe de `config.h` ; le hotspot doit être en **2,4 GHz** (l'ESP8266 ne fait pas 5 GHz) |
-| LED ne bouge pas mais série OK | `LED_ENDPOINT` = IP du PC Hôte joignable depuis l'ESP ; LED câblée sur D1/D2 ; tester `curl $HOST/v1/device/led` |
-| Visage toujours « non reconnu » | ré-enrôler avec une photo nette, de face, bien éclairée ; baisser `FACE_THRESHOLD` (défaut 0.40) sur le service |
-| Enrôlement → 400 au WAF | corps base64 > limite : `MODSEC_REQ_BODY_NOFILES_LIMIT` du WAF (déjà à 8 Mo) |
+| Visage reconnu, en attente du mot de passe | vert clignotant |
+| Mot de passe correct | vert fixe 30 s |
+| Mot de passe erroné | rouge, 10 clignotements |
+| Visage non reconnu (ou compte verrouillé) | rouge fixe 30 s |
 
-## 6. Remise à zéro entre deux essais
+Après 2 échecs, l'identifiant est verrouillé 5 minutes.
+
+## Matériel
+
+- PC Hôte avec la plateforme démarrée (`scripts/setup.sh`) et une caméra USB.
+- NodeMCU ESP8266 + câble USB **de données**.
+- Une LED bicolore à 3 broches + 2 résistances ~330 Ω : vert → **D1**, rouge → **D2**, broche
+  commune (la plus longue) → **GND**. Si la LED reste allumée au repos ou si les couleurs sont
+  inversées, c'est une LED à anode commune : broche commune sur **3V3** et `COMMON_ANODE 1`
+  dans `iot/led-indicator/include/config.h`.
+- Un WiFi **2,4 GHz** (l'ESP8266 ne voit pas le 5 GHz), partagé par le PC Hôte et l'ESP.
+
+## Une seule fois sur le PC Hôte
 
 ```bash
-scripts/export-logs.sh --since 15m   # (optionnel) conserver les preuves AVANT reset
-scripts/reset-known-good.sh          # réarme la plateforme (efface les logs Loki)
+sudo apt remove brltty     # sinon il capte la puce USB de la carte (pas de /dev/ttyUSB0)
+```
+
+## Le jour de la démo
+
+Depuis la racine du dépôt, PC Hôte connecté au WiFi de la démo :
+
+| # | Commande | Ce qu'elle fait |
+|---|---|---|
+| 1 | `scripts/demo-led.sh publish` | Publie le WAF sur l'IP WiFi du PC Hôte et vérifie que le canal LED répond |
+| 2 | `scripts/demo-led.sh flash` | Demande le WiFi, écrit l'URL du canal dans le firmware, flashe la carte (branchée en USB) |
+| 3 | `scripts/demo-led.sh test` | Sans caméra : la LED clignote rouge, puis passe au vert fixe |
+| 4 | `scripts/demo-start.sh` | Lance l'interface web |
+
+L'étape 2 n'est à refaire que si l'IP du PC Hôte ou le WiFi change. L'IP détectée est affichée ;
+pour en forcer une autre : `scripts/demo-led.sh publish 192.168.137.1` (idem pour `flash`).
+
+> ⚠️ L'API limite à **12 appels d'authentification par 15 minutes** (inscription, vérification
+> faciale, connexion), et le navigateur et les scripts du PC Hôte partagent ce quota. La
+> préparation + le scénario du jury en consomment ~9, `test` 3 de plus : lancer `test` **au
+> moins 15 minutes avant** le passage devant le jury.
+
+Ensuite, dans un navigateur **sur le PC Hôte**, ouvrir **http://localhost:5173** (pas l'IP :
+le navigateur bloque la caméra hors `localhost`) :
+
+1. **Créer un compte** `admin@resilience-alpha.local` (cet email reçoit le rôle admin).
+2. **Administration** → *Habilitations faciales* : enrôler le visage du compte (2-3 captures).
+3. Se déconnecter.
+
+> Les comptes sont gardés en mémoire : après un redémarrage de l'API, refaire ces 3 étapes.
+
+## Le scénario devant le jury
+
+| Action | Écran | LED |
+|---|---|---|
+| Email de l'admin, puis *Confirmer mon identité* | champ mot de passe | vert clignotant |
+| Bon mot de passe | back-office | vert fixe 30 s |
+| Se reconnecter, mauvais mot de passe | retour à l'email | rouge, 10 clignotements |
+| Se reconnecter, une **autre personne** devant la caméra | retour à l'email | rouge fixe 30 s |
+| Refaire le refus une 2e fois | « Trop de tentatives » | rouge fixe 30 s |
+
+Après la dernière ligne, l'identifiant est verrouillé 5 minutes : la jouer en dernier.
+Un visage caché (aucun visage détecté) ne compte pas comme un refus : la LED ne bouge pas.
+
+## Dépannage
+
+| Symptôme | Solution |
+|---|---|
+| `publish` : le canal ne répond pas | La plateforme ne tourne pas : `scripts/setup.sh` |
+| `flash` : « Aucune carte détectée » | Câble de données (pas de charge seule) ; `sudo apt remove brltty` puis rebrancher |
+| `flash` : « Failed to connect » | Maintenir **FLASH**, appuyer sur **RST**, relâcher RST puis FLASH, relancer |
+| La LED ne réagit pas | Journal série : `pio device monitor -d iot/led-indicator`. `[wifi] echec` : mauvais WiFi ou réseau 5 GHz. `[wifi] OK` sans `[led]` : refaire `publish` puis `flash` (l'IP a changé) |
+| `test` ne fait rien et l'API répond 429 | Limite de 12 connexions / 15 min par IP : attendre |
+| Visage toujours refusé | Ré-enrôler : visage de face, bien éclairé, plusieurs captures |
+| « Trop de tentatives » | Identifiant verrouillé 5 minutes : attendre, ou utiliser un autre compte |
+
+## Après la démo
+
+```bash
+scripts/demo-led.sh local   # le WAF n'écoute plus que sur 127.0.0.1
 ```

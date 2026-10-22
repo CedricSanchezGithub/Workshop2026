@@ -41,7 +41,8 @@ cp include/config.example.h include/config.h
 ```
 
 `config.h` est ignoré par Git (aucun secret dans le dépôt). `LED_ENDPOINT` pointe sur le WAF
-(point d'entrée du groupe) : `http://192.168.137.1:8080/v1/device/led` le jour de la démo.
+(point d'entrée du groupe), à l'IP WiFi du PC Hôte. `scripts/demo-led.sh flash` écrit cette
+IP et flashe la carte ; pas-à-pas de la démo : `docs/demo-mfa-led.md`.
 
 ## Build / flash
 
