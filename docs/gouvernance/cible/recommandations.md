@@ -71,7 +71,7 @@ Chaque recommandation repose sur un élément **vérifiable**, issu de nos essai
 | Deux scénarios d'attaque, joués par l'équipe | Programme de tests annuel, tests d'intrusion par des testeurs indépendants (TLPT si l'entité est désignée) |
 | Notification décrite sur papier | Procédure exercée, astreinte conformité, modèles de rapports ACPR |
 | Aucun contrat avec les prestataires TIC | Registre d'information, clauses DORA, plans de sortie (REC-11) |
-| Données fictives, sauf les visages des membres de l'équipe enrôlés pour la double authentification (consentement écrit, effacement après la démo) | Analyse d'impact sur la protection des données (AIPD) avant de traiter des données réelles, obligatoire pour la biométrie (RGPD art. 9 et 35) ; double authentification proposée aussi aux clients |
+| Données fictives, sauf les visages des membres de l'équipe enrôlés pour la double authentification (consentement écrit, effacement après la démo) | Analyse d'impact sur la protection des données (AIPD) avant de traiter des données réelles, obligatoire pour la biométrie (RGPD art. 9 et 35) ; double authentification proposée aussi aux clients ; détection du vivant pour la reconnaissance faciale |
 | Rôles fictifs (directeur de crise, RSSI, DPO) | Rôles nommés, suppléants, exercices de crise deux fois par an |
 | Hypothèses financières fictives | Analyse d'impact sur l'activité menée avec les métiers et la finance |
 | Gouvernance portée par l'équipe projet | Cadre de risque TIC approuvé par l'organe de direction, comme l'exige DORA (art. 5) |

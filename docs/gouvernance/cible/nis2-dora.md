@@ -2,7 +2,7 @@
 
 > **Statut : cible.** Ce document décrit ce que l'équipe vise et a décidé, pas ce qui est déjà codé. L'état réel du code est suivi dans `constat/etat-implementation.md`.
 
-> Ticket : WOR-69 · Responsable : Cédric · Version 0.2 du 20/10/2026
+> Ticket : WOR-69 · Responsable : Cédric · Version 0.3 du 22/10/2026
 >
 > Le sujet demande de **distinguer les exigences pertinentes des obligations qu'un prototype de quatre jours ne peut pas démontrer**. Pour chaque exigence, ce document dit donc ce que le démonstrateur prouve, et ce qu'il ne prouve pas.
 
@@ -27,7 +27,7 @@
 | Exigence | Art. | Ce que le prototype montre (preuve) | Statut |
 |---|---|---|---|
 | Cadre de gestion du risque documenté, fonctions critiques identifiées | 6, 8 | EBIOS RM, services critiques chiffrés, biens supports reliés aux valeurs métier | ✅ |
-| Protection : moindre privilège, secrets, filtrage | 9 | WAF bloquant, secrets du socle dans Vault, conteneurs durcis, moteur de remédiation encadré | 🟡 un seul hôte ; secrets de Pay&Go et port de sa base encore exposés |
+| Protection : moindre privilège, secrets, filtrage | 9 | WAF bloquant, secrets du socle dans Vault, conteneurs durcis, moteur de remédiation encadré ; authentification forte du back-office (visage puis mot de passe, verrouillage après 2 échecs), comme le demande l'art. 9.4 d) | 🟡 un seul hôte ; secrets de Pay&Go et port de sa base encore exposés |
 | Détection rapide des anomalies | 10 | Détection ML sur métriques et journaux ; délai attaque → alerte mesuré à l'essai | 🟡 délai pas encore mesuré |
 | Réponse et rétablissement | 11 | **Cœur de la démo** : remédiation automatique, puis transaction de test réussie ; durée comparée au RTO | 🟡 RTO pas encore mesuré |
 | Tests du plan de continuité | 11.6 | Scénarios rejoués et chronométrés | 🟡 deux scénarios, pas de programme annuel |
@@ -83,6 +83,8 @@ Appliqué au risque R1 (déni de service sur l'API, scénario principal), en heu
 > **Incidents récurrents :** des incidents qui ne sont pas majeurs un par un, mais qui ont la même cause apparente, se sont produits au moins deux fois en 6 mois et dépassent ensemble les seuils, sont traités comme un seul incident majeur (règlement délégué (UE) 2024/1772, art. 16). Des dénis de service courts et répétés peuvent donc finir par imposer une notification.
 
 Pour R2 et R5 (injection, exfiltration), le critère « perte de données après accès malveillant » suffit, avec la criticité du service, à rendre l'incident majeur, **quelle que soit la vitesse de reprise**. Restaurer la disponibilité ne dispense pas de notifier. C'est la distinction que le sujet demande de ne pas manquer.
+
+**Paradoxe du démonstrateur :** la restauration actuelle efface toutes les transactions, et elle se déclenche même quand le WAF a bloqué l'injection (`constat/etat-implementation.md` §3). C'est alors notre propre remédiation qui crée la perte de données après une tentative malveillante, donc l'incident majeur. D'où la recommandation de ne restaurer que si une injection a passé le WAF.
 
 **Argument pour la direction :** la reprise automatique en moins de 5 minutes n'est pas seulement un gain technique. Elle maintient un déni de service sous les seuils de DORA, ce qui évite la notification réglementaire et la pénalité contractuelle.
 

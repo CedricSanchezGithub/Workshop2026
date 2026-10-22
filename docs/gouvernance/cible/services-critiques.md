@@ -2,7 +2,7 @@
 
 > **Statut : cible.** Ce document décrit ce que l'équipe vise et a décidé, pas ce qui est déjà codé. L'état réel du code est suivi dans `constat/etat-implementation.md`.
 
-> Ticket : WOR-68 · Responsable : Cédric · Version 0.1 du 19/10/2026
+> Ticket : WOR-68 · Responsable : Cédric · Version 0.2 du 22/10/2026
 >
 > Il fournit l'échelle de gravité de l'EBIOS RM, et sert d'entrée aux objectifs de reprise (`rto-rpo.md`) et au PCA/PRA.
 
@@ -54,7 +54,7 @@ La perte directe reste modeste. **Le vrai coût vient des effets de seuil** : la
 | Rang | Service | Criticité | Pourquoi | Dégradation acceptable |
 |---|---|---|---|---|
 | 1 | Traitement des transactions (API de paiement et base de données) | **Vitale** | Porte directement le revenu et l'engagement envers les partenaires | Aucune |
-| 2 | Authentification | **Vitale** | Sans elle, aucune transaction ne peut être initiée. Intégrée à l'API : elle tombe avec elle | Aucune |
+| 2 | Authentification | **Vitale** | Sans elle, aucune transaction ne peut être initiée. Intégrée à l'API : elle tombe avec elle. Le back-office dépend en plus de la reconnaissance faciale (consigne additionnelle 1) | Aucune pour les clients ; pour le back-office, quelques minutes, avec une connexion de secours à prévoir |
 | 3 | WAF / point d'entrée | **Vitale** | Point de passage unique de tout le trafic | Un contournement temporaire n'est **pas** acceptable (exposition directe) |
 | 4 | Journalisation et SIEM | Importante | Aucun revenu en jeu, mais elle est indispensable à l'investigation et à la conformité | Arrêt de quelques heures, **sans perte** de journaux |
 | 5 | Consultation de l'historique | Importante | Gêne pour les partenaires, sans perte de revenu | Mode dégradé possible (lecture différée) |

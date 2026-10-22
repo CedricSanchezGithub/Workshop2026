@@ -95,10 +95,10 @@ Trois essais minimum par attaque pendant les répétitions (WOR-78) ; détail de
 
 On retient le **pire des trois essais**, pas la moyenne : un RTO se garantit, il ne s'espère pas.
 
-## 7. Ce que le code permet de tenir au 20/10
+## 7. Ce que le code permet de tenir au 22/10
 
 - **RPO = 0 : pas tenable en l'état.** Dans le socle, l'API garde ses données en mémoire : un redémarrage (attaque A) ou une restauration (attaque B) efface toutes les transactions. Aucune sauvegarde.
-- **Délai de détection : pas encore mesuré.** Le modèle existe, mais il n'a été validé que sur du trafic normal.
+- **Délai de détection : pas encore mesuré sur les attaques A et B.** Le modèle a été réglé le 21/10 sur 7,3 h de trafic de la plateforme ; l'alerte part après 3 fenêtres anormales, soit environ 30 s.
 - **Vérification de la reprise (T6) : en place.** Le moteur passe une transaction de test complète à travers le WAF.
 - **Durée affichée par le moteur :** elle part de la réception de l'alerte (T3 → T6). Le RTO se calcule depuis T1, avec le protocole du §6.
 
@@ -108,4 +108,4 @@ Détail et sources : `constat/etat-implementation.md`.
 
 - **Perte du PC Hôte** (panne, rançongiciel R7) : pas de deuxième site, donc pas de RTO tenable. La reprise passe par une réinstallation depuis le dépôt Git (WOR-49), sans objectif chiffré. C'est un risque résiduel assumé, à porter dans le PCA/PRA (WOR-71).
 - **Sauvegardes sur le même hôte** : le RPO de 0 ne tient que si la base n'est pas détruite avec son hôte.
-- **Faux positif du modèle ML** : une remédiation déclenchée à tort provoque elle-même une coupure, que le RTO doit absorber. À mesurer pendant le chaos engineering (WOR-76).
+- **Faux positif du modèle ML** : une remédiation déclenchée à tort provoque elle-même une coupure, que le RTO doit absorber. C'est arrivé le 21/10 : deux fausses alertes d'injection ont déclenché deux restaurations (`ml/training/README.md`). À suivre pendant le chaos engineering (WOR-76).
