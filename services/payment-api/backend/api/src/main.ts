@@ -175,7 +175,9 @@ app.use((request, response, next) => {
 
   next();
 });
-app.use(rateLimit({ windowMs: 60_000, limit: 60, standardHeaders: 'draft-7', legacyHeaders: false }));
+// Le canal LED (WOR-100) est pollé fréquemment par l'ESP8266 : exempté du quota global
+// (lecture seule, protégé au besoin par DEVICE_TOKEN) pour ne pas se faire limiter lui-même.
+app.use(rateLimit({ windowMs: 60_000, limit: 60, standardHeaders: 'draft-7', legacyHeaders: false, skip: (request) => request.path === '/v1/device/led' }));
 app.use(['/v1/auth', '/v1/payments'], (_request, response, next) => { response.setHeader('Cache-Control', 'no-store'); next(); });
 const authRateLimit = rateLimit({ windowMs: 15 * 60_000, limit: 12, standardHeaders: 'draft-7', legacyHeaders: false });
 const chatRateLimit = rateLimit({ windowMs: 60_000, limit: 20, standardHeaders: 'draft-7', legacyHeaders: false });
