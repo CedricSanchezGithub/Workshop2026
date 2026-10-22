@@ -1,6 +1,6 @@
 <mxfile host="Electron">
   <diagram name="Démo" id="demo">
-    <mxGraphModel dx="1682" dy="1314" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="980" math="0" shadow="0">
+    <mxGraphModel dx="1682" dy="1314" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="910" math="0" shadow="0">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
@@ -8,10 +8,10 @@
           <mxGeometry height="40" width="1560" x="20" y="10" as="geometry" />
         </mxCell>
         <mxCell id="net" parent="1" style="rounded=1;whiteSpace=wrap;html=1;verticalAlign=top;align=left;spacingLeft=10;spacingTop=6;fontSize=15;fontStyle=1;arcSize=3;fillColor=#f5f5f5;strokeColor=#999999;dashed=1;fontColor=#555555;" value="Réseau WiFi RESILIENCE-G6 — point d&#39;accès délivré par le PC Hôte (192.168.137.1)" vertex="1">
-          <mxGeometry height="900" width="1560" x="20" y="60" as="geometry" />
+          <mxGeometry height="830" width="1560" x="20" y="60" as="geometry" />
         </mxCell>
         <mxCell id="host" parent="1" style="rounded=1;whiteSpace=wrap;html=1;verticalAlign=top;align=left;spacingLeft=10;spacingTop=6;fontSize=15;fontStyle=1;arcSize=3;fillColor=#dae8fc;strokeColor=#6c8ebf;" value="PC Hôte" vertex="1">
-          <mxGeometry height="830" width="1020" x="50" y="100" as="geometry" />
+          <mxGeometry height="750" width="1020" x="50" y="100" as="geometry" />
         </mxCell>
         <mxCell id="docker" parent="1" style="rounded=1;whiteSpace=wrap;html=1;verticalAlign=top;align=left;spacingLeft=10;spacingTop=6;fontSize=15;fontStyle=1;arcSize=3;fillColor=#ffffff;strokeColor=#6c8ebf;dashed=1;fontSize=13;" value="Docker Compose" vertex="1">
           <mxGeometry height="620" width="720" x="70" y="200" as="geometry" />
@@ -51,9 +51,6 @@
         </mxCell>
         <mxCell id="browser" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fontSize=13;arcSize=12;fillColor=#f5f5f5;strokeColor=#666666;" value="Navigateur back-office&lt;br&gt;localhost:5173&lt;br&gt;&lt;font style=&#39;font-size:11px&#39;&gt;identifiant → visage → mot de passe, via le WAF&lt;/font&gt;" vertex="1">
           <mxGeometry height="80" width="200" x="830" y="720" as="geometry" />
-        </mxCell>
-        <mxCell id="note" parent="1" style="text;html=1;whiteSpace=wrap;align=left;verticalAlign=top;fontSize=13;spacingLeft=6;" value="&lt;b&gt;À l&#39;écran du PC Hôte (vidéoprojecteur)&lt;/b&gt; : tableau de bord du moteur (avant, pendant, après l&#39;incident), puis connexion au back-office.&lt;br&gt;&lt;b&gt;Ne rien toucher pendant la reprise&lt;/b&gt; : une intervention manuelle vaut 0/5 sur l&#39;axe 1. Après une reprise, les alertes sont ignorées 180 s (voulu).&lt;br&gt;Faire la démo visage + LED &lt;b&gt;avant&lt;/b&gt; l&#39;attaque : l&#39;API est en mémoire, un redémarrage efface le compte administrateur." vertex="1">
-          <mxGeometry height="90" width="980" x="70" y="830" as="geometry" />
         </mxCell>
         <mxCell id="att" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fontSize=13;arcSize=12;fillColor=#f8cecc;strokeColor=#b85450;" value="&lt;b&gt;PC Attaquant&lt;/b&gt; — Axel&lt;br&gt;attack-a.sh --target 192.168.137.1 --port 8080&lt;br&gt;&lt;font style=&#39;font-size:11px&#39;&gt;garde-fou : réseau du groupe uniquement&lt;/font&gt;" vertex="1">
           <mxGeometry height="100" width="410" x="1130" y="110" as="geometry" />
