@@ -7,6 +7,9 @@ const css = fs.readFileSync(path.join(__dirname, 'theme.css'), 'utf8');
 const escape = (s) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const firstHeading = (source) => (/^#\s+(.*)$/m.exec(source) || [])[1] || '';
 
+const logo = (file) => `data:image/svg+xml;base64,${fs.readFileSync(path.join(__dirname, '..', 'assets', file)).toString('base64')}`;
+const logos = `<div class="logos"><img src="${logo('logo-epsi.svg')}" alt="EPSI"><img src="${logo('logo-mydil.svg')}" alt="myDiL"></div>`;
+
 function page(title, body) {
   return `<!doctype html>
 <html lang="fr"><head><meta charset="utf-8"><title>${escape(title)}</title><style>${css}</style></head>
@@ -16,6 +19,7 @@ function page(title, body) {
 // Page de garde, puis une section par partie
 function dossierPage(dossier, cover, parts) {
   const body = [
+    logos,
     `<p class="title">${escape(dossier.title)}</p>`,
     `<p class="subtitle">${escape(dossier.subtitle)}</p>`,
     toHtml(cover),

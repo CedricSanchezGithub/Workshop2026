@@ -14,6 +14,8 @@ export default defineConfig({
       description: 'PROJECT RESILIENCE-ALPHA : risques, réglementation, continuité et reprise',
       defaultLocale: 'root',
       locales: { root: { label: 'Français', lang: 'fr' } },
+      // Logos de l'école (fournis avec le sujet : consignes/_Divers), version sombre pour le thème sombre
+      logo: { light: './src/assets/logos-clair.svg', dark: './src/assets/logos-sombre.svg', alt: 'EPSI · myDiL' },
       customCss: ['./src/styles/charte.css'],
       sidebar: [
         { label: 'Accueil', link: '/' },
