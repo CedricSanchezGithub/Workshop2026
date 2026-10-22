@@ -1,6 +1,7 @@
 import { Activity, AlertTriangle, ArrowUpRight, CheckCircle2, Gauge, Server, ShieldCheck } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { getAdminOverview, scalePaymentWorkers } from './adminClient';
+import { FaceEnrollmentPanel } from './FaceEnrollmentPanel';
 
 const statusLabels = { operational: 'Opérationnel', degraded: 'Dégradé', down: 'Indisponible' };
 
@@ -36,5 +37,6 @@ export function AdminPage() {
       <section className="admin-panel scaling-panel"><div className="admin-panel-heading"><div><span className="section-kicker">CAPACITÉ</span><h2>Workers paiement</h2></div><Gauge size={20} /></div><p className="admin-panel-copy">Ajustez le nombre de workers qui consomment la queue de paiement. Limite de démonstration : 1 à 10.</p><div className="scaling-current"><span>Capacité actuelle</span><strong>{queue.workerCount} worker{queue.workerCount > 1 ? 's' : ''}</strong></div><div className="scaling-controls">{Array.from({ length: overview.scaling.maxWorkers - overview.scaling.minWorkers + 1 }, (_, index) => index + overview.scaling.minWorkers).map((count) => <button type="button" key={count} className={count === queue.workerCount ? 'active' : ''} onClick={() => scale(count)} disabled={scaling}>{count}</button>)}</div><div className="scaling-footnote"><Server size={13} /> API de démonstration · queue mémoire</div></section>
     </div>
     <section className="admin-panel admin-payment-summary"><div className="admin-panel-heading"><div><span className="section-kicker">PAIEMENTS</span><h2>Répartition des états</h2></div><ArrowUpRight size={20} /></div><div className="payment-status-grid">{Object.entries(overview.metrics.paymentStatuses).length ? Object.entries(overview.metrics.paymentStatuses).map(([status, count]) => <div key={status}><strong>{count}</strong><span>{status.replaceAll('_', ' ')}</span></div>) : <p>Aucun paiement traité.</p>}</div></section>
+    <FaceEnrollmentPanel />
   </div>;
 }

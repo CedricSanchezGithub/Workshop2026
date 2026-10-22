@@ -120,12 +120,14 @@ app.use(cors({ origin: (origin, callback) => {
     return callback(null, localAlias && sameLocalPort);
   } catch { return callback(null, false); }
 }, methods: ['GET', 'POST'], allowedHeaders: ['Content-Type', 'Authorization', 'Idempotency-Key'] }));
-// Corps limité à 32 kB, sauf l'enrôlement facial (image en base64) qui tolère jusqu'à 6 MB.
+// Corps JSON limité à 32 kB. Les routes faciales reçoivent l'image en multipart (fichier) jusqu'à 6 MB :
+// le CRS du WAF n'inspecte pas le contenu des fichiers, alors qu'une image en base64 dans du JSON
+// déclenche des faux positifs (934170, 941xxx, 932xxx).
 const jsonSmall = express.json({ limit: '32kb' });
-const jsonImage = express.json({ limit: '6mb' });
+const multipartImage = express.raw({ type: 'multipart/form-data', limit: '6mb' });
 const imageBodyPaths = new Set(['/v1/admin/faces/enroll', '/v1/auth/face-check']);
 app.use((request, response, next) =>
-  (imageBodyPaths.has(request.path) ? jsonImage : jsonSmall)(request, response, next));
+  (imageBodyPaths.has(request.path) ? multipartImage : jsonSmall)(request, response, next));
 app.use((request, response, next) => {
   if (request.path === '/metrics') return next();
 
@@ -184,15 +186,23 @@ app.use('/docs', swaggerUi.serve, swaggerUi.setup(openapiDocument, { customSiteT
 const paymentSchema = z.object({ bookingId: z.string().regex(/^booking_\d+$/).max(80), amountCents: z.number().int().positive().max(2_000_000), currency: z.literal('EUR'), paymentMethod: z.object({ token: z.string().regex(/^pm_mock_[a-z0-9-]{12,128}$/), last4: z.string().regex(/^\d{4}$/), brand: z.enum(['visa', 'mastercard', 'amex', 'other']), email: z.string().email() }).strict() }).strict();
 const registerSchema = z.object({ name: z.string().trim().min(2).max(80), email: z.string().email().max(160), password: z.string().min(8).max(128) });
 const loginSchema = z.object({ email: z.string().email().max(160), password: z.string().min(1).max(128), faceToken: z.string().max(64).optional() });
-// Vérification faciale (WOR-96) : identifiant + image caméra en base64.
-const faceCheckSchema = z.object({ email: z.string().email().max(160), imageBase64: z.string().min(1).max(8_000_000) }).strict();
+// Vérification faciale (WOR-96) et enrôlement (WOR-97) : formulaire multipart `email` + fichier `image`.
+const faceFormSchema = z.object({ email: z.string().email().max(160), image: z.instanceof(File).refine((file) => file.size > 0 && file.type.startsWith('image/')) }).strict();
 const adminScalingSchema = z.object({ workerCount: z.number().int().min(1).max(10) }).strict();
-// Enrôlement facial (WOR-97) : image en base64 (data-URL acceptée), ~6 Mo max.
-const enrollFaceSchema = z.object({ email: z.string().email().max(160), imageBase64: z.string().min(1).max(8_000_000) }).strict();
 const revokeFaceSchema = z.object({ email: z.string().email().max(160) }).strict();
 const chatSchema = z.object({ messages: z.array(z.object({ role: z.enum(['user', 'assistant']), content: z.string().trim().min(1).max(1_000) }).strict()).min(1).max(12) }).strict();
 
 type AuthenticatedRequest = Request & { userId?: string; sessionToken?: string };
+
+// Décode le formulaire multipart (corps brut) avec le parseur natif de Node, puis le valide.
+async function readFaceForm(request: Request): Promise<{ email: string; image: Buffer; contentType: string }> {
+  const body = Buffer.isBuffer(request.body) ? request.body : Buffer.alloc(0);
+  const form = await new Response(new Uint8Array(body), { headers: { 'content-type': request.header('content-type') ?? '' } })
+    .formData()
+    .catch(() => new FormData());
+  const input = faceFormSchema.parse({ email: form.get('email') ?? undefined, image: form.get('image') ?? undefined });
+  return { email: input.email.trim().toLowerCase(), image: Buffer.from(await input.image.arrayBuffer()), contentType: input.image.type };
+}
 
 async function authenticate(request: AuthenticatedRequest, response: Response, next: NextFunction) {
   const authorization = request.header('authorization');
@@ -283,11 +293,10 @@ app.get('/v1/admin/faces', authenticateAdmin, async (_request, response, next) =
 
 app.post('/v1/admin/faces/enroll', authenticateAdmin, async (request: AuthenticatedRequest, response, next) => {
   try {
-    const input = enrollFaceSchema.parse(request.body);
-    const user = await userRepository.findByEmail(input.email.trim().toLowerCase());
+    const { email, image, contentType } = await readFaceForm(request);
+    const user = await userRepository.findByEmail(email);
     if (!user) return response.status(404).json({ error: 'USER_NOT_FOUND' });
-    const image = Buffer.from(input.imageBase64.replace(/^data:[^,]+,/, ''), 'base64');
-    const { samples } = await faceDirectory.enroll(user.id, image, 'image/jpeg');
+    const { samples } = await faceDirectory.enroll(user.id, image, contentType);
     audit.write({ event: 'face.enroll', userId: user.id, metadata: { email: user.email, samples } });
     return response.status(201).json({ data: { email: user.email, samples } });
   } catch (error) {
@@ -323,8 +332,7 @@ app.post('/v1/auth/register', authRateLimit, async (request, response, next) => 
 // Les événements face.recognized / face.rejected alimentent l'objet connecté (WOR-100).
 app.post('/v1/auth/face-check', authRateLimit, async (request, response, next) => {
   try {
-    const input = faceCheckSchema.parse(request.body);
-    const email = input.email.trim().toLowerCase();
+    const { email, image, contentType } = await readFaceForm(request);
     const lock = faceAttempts.status(email);
     if (lock.locked) {
       const retryAfterSeconds = Math.ceil(lock.retryAfterMs / 1000);
@@ -337,8 +345,7 @@ app.post('/v1/auth/face-check', authRateLimit, async (request, response, next) =
       // Aucun visage enrôlé : la MFA faciale ne s'applique pas, on passe au mot de passe.
       return response.json({ data: { status: 'not_required' } });
     }
-    const image = Buffer.from(input.imageBase64.replace(/^data:[^,]+,/, ''), 'base64');
-    const { match, score } = await faceDirectory.verify(user.id, image, 'image/jpeg');
+    const { match, score } = await faceDirectory.verify(user.id, image, contentType);
     if (!match) {
       const after = faceAttempts.recordFailure(email);
       metrics.faceChecksTotal.inc({ result: 'rejected' });

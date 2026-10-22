@@ -4,7 +4,9 @@ const TOKEN_KEY = 'payandgo:auth-token';
 async function request(path, options = {}) {
   let response;
   try {
-    response = await fetch(`${AUTH_API_URL}${path}`, { ...options, headers: { 'Content-Type': 'application/json', ...(options.headers || {}) } });
+    // FormData : le navigateur pose lui-même le Content-Type multipart (avec la frontière).
+    const contentType = options.body instanceof FormData ? {} : { 'Content-Type': 'application/json' };
+    response = await fetch(`${AUTH_API_URL}${path}`, { ...options, headers: { ...contentType, ...(options.headers || {}) } });
   } catch {
     throw new Error('AUTH_API_UNAVAILABLE');
   }
@@ -28,8 +30,12 @@ export async function registerUser(input) {
   return session;
 }
 
-export async function faceCheck(email, imageBase64) {
-  return request('/v1/auth/face-check', { method: 'POST', body: JSON.stringify({ email, imageBase64 }) });
+// Image envoyée en fichier multipart (et non en base64 dans du JSON, bloqué par le CRS du WAF).
+export async function faceCheck(email, image) {
+  const body = new FormData();
+  body.set('email', email);
+  body.set('image', image, 'face.jpg');
+  return request('/v1/auth/face-check', { method: 'POST', body });
 }
 
 export async function loginUser(input) {

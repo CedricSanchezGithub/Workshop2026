@@ -64,9 +64,9 @@ export function LoginPage({ onRegister, onBook, onAuthenticated }) {
     canvas.width = video.videoWidth || 640;
     canvas.height = video.videoHeight || 480;
     canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
-    const imageBase64 = canvas.toDataURL('image/jpeg', 0.9);
+    const image = await new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.9));
     try {
-      const result = await faceCheck(email, imageBase64);
+      const result = await faceCheck(email, image);
       stopCamera();
       if (result.status === 'recognized') setFaceToken(result.faceToken);
       setInfo('');

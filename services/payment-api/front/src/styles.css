@@ -320,3 +320,29 @@
 }
 .auth-camera video { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); }
 .form-info { color: #6b7280; font-size: 0.9rem; margin: 0; }
+
+/* Habilitations faciales du back-office (WOR-97) */
+.face-panel { margin-top: 13px; }
+.face-panel .admin-panel-copy { max-width: 560px; }
+.face-message { margin: 0 0 17px; }
+.face-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 22px; }
+.face-enroll { display: grid; gap: 12px; align-content: start; }
+.face-field { display: grid; gap: 6px; color: var(--muted); font-size: 9px; }
+.face-field input { width: 100%; border: 1px solid var(--line); border-radius: 4px; outline: none; padding: 11px; color: var(--ink); background: #fafafa; font: 12px 'DM Sans'; }
+.face-field input:focus { border-color: var(--ink); background: white; }
+.face-camera { display: grid; place-items: center; aspect-ratio: 4 / 3; max-height: 320px; overflow: hidden; border-radius: 8px; background: #0b0b0f; color: #8b8b93; font-size: 10px; }
+.face-camera span { display: grid; justify-items: center; gap: 8px; }
+.face-camera video { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); }
+.face-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.face-actions button, .face-revoke { display: inline-flex; align-items: center; gap: 6px; min-height: 34px; padding: 0 12px; border: 1px solid var(--line); background: var(--paper); color: var(--ink); font-size: 10px; }
+.face-actions button:hover, .face-actions .face-primary { border-color: var(--ink); background: var(--ink); color: var(--paper); }
+.face-actions button:disabled, .face-revoke:disabled { cursor: wait; opacity: .55; }
+.face-list { display: grid; align-content: start; }
+.face-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 12px 0; border-bottom: 1px solid var(--line); }
+.face-row-user { display: grid; gap: 4px; min-width: 0; padding: 0; border: 0; background: none; color: var(--ink); text-align: left; }
+.face-row-user strong { font-size: 11px; }
+.face-row-user small { color: var(--muted); font-size: 9px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.face-row-user:hover strong { text-decoration: underline; }
+.face-revoke:hover { border-color: #a51d15; color: #a51d15; }
+.face-empty { margin: 14px 0 0; color: var(--muted); font-size: 10px; }
+@media (max-width: 900px) { .face-layout { grid-template-columns: 1fr; } }
