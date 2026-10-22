@@ -20,7 +20,7 @@ module.exports = {
     {
       id: 'gouvernance',
       title: 'Workshop 2026 — Groupe 6',
-      subtitle: 'PROJECT RESILIENCE-ALPHA · Dossier de gouvernance — état au 20/10/2026',
+      subtitle: 'PROJECT RESILIENCE-ALPHA · Dossier de gouvernance — état au 22/10/2026',
       sourceDir: path.join(ROOT, 'docs', 'gouvernance'),
       cover: path.join(__dirname, '..', 'cover-gouvernance.md'),
       fullName: 'Workshop2026-G6-Gouvernance',

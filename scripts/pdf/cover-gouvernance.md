@@ -14,18 +14,18 @@ Chaque pilier a un responsable. Les décisions d'architecture restent prises ens
 
 Les 35 tickets communs (Pilotage, Cadrage, Intégration, Livrables) n'ont pas encore de responsable.
 
-## Avancement du pilier Gouvernance au 20/10/2026
+## Avancement du pilier Gouvernance au 22/10/2026
 
 | Ticket | Sujet | Statut | Livrable |
 |---|---|---|---|
 | WOR-31 | Matrice de risques EBIOS RM, version initiale | Terminé, validé par les coachs | Partie « EBIOS RM » |
 | WOR-68 | Services critiques et coût d'un arrêt de paiement | Terminé | Partie « Services critiques » |
-| WOR-69 | Analyse NIS2 / DORA | En cours, version 0.2 | Partie « Analyse NIS2 / DORA » |
+| WOR-69 | Analyse NIS2 / DORA | Terminé, version 0.3 | Partie « Analyse NIS2 / DORA » |
 | WOR-70 | Objectifs RTO / RPO | En cours, version 0.3 | Partie « Objectifs RTO / RPO » ; temps mesurés attendus des essais (WOR-79) |
 | WOR-71 | PCA / PRA | En cours, version 0.3 | Partie « PCA / PRA » ; à confirmer par les essais (WOR-75, WOR-76, WOR-78) |
 | WOR-72 | Recommandations et arbitrages pour une direction | En cours, version 0.3 | Partie « Recommandations à la direction » |
 | WOR-67 | EBIOS RM complet (ateliers 3 à 5) | Rédigé, à faire valider par les coachs | Partie « EBIOS RM », ateliers 3 à 5 |
-| WOR-73 | Relier EBIOS et PCA/PRA à l'architecture et aux essais | En cours | Partie « État d'implémentation » (v0.4) ; résultats des essais à ajouter |
+| WOR-73 | Relier EBIOS et PCA/PRA à l'architecture et aux essais | En cours | Partie « État d'implémentation » (v0.5) ; résultats des essais à ajouter |
 
 ## Décisions en attente avec les autres piliers
 

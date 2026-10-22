@@ -165,6 +165,7 @@ Chaque scénario suit les composants réels du démonstrateur (`constat/etat-imp
 | **SO3b** (SS4, R3) Blocage de clients légitimes | Même accès · alerte `dos` forgée avec les IP des partenaires | Les IP de l'hôte ne sont jamais bloquées ; rien ne protège celles des partenaires | **V2** |
 | **SO4** (SS3, R5) Exfiltration | 1. Depuis le réseau, connexion au port 55432 · 2. Mot de passe lu dans le dépôt · 3. Copie de la base | Aucune, si le déploiement autonome de Pay&Go (`services/payment-api/infra/`) tourne | **V3** : trivial. Sans objet pour le socle, qui n'expose que le WAF au réseau |
 | **SO5** (SS5, R4) Usurpation | 1. Essais d'identifiants sur `/v1/auth/login` · 2. Session obtenue · 3. Paiement validé avec le code renvoyé par l'API (`demoCode`) | 12 essais par 15 min et par client ; **identifiant verrouillé après 2 échecs** (5 min, puis 10, 15…) ; visage exigé avant le mot de passe pour les comptes du back-office enrôlés | **V1** : deviner un mot de passe devient impraticable. Restent la réutilisation d'un mot de passe connu (un essai par compte) et un code de paiement qui ne protège rien |
+| **SO5b** (SS5, R4) Usurpation d'un administrateur sur place | 1. Accès physique au poste du back-office (la consigne additionnelle 1 cite des attaques physiques) · 2. Photo de l'administrateur devant la caméra · 3. Mot de passe obtenu par ailleurs | Visage **et** mot de passe exigés ; 2 échecs verrouillent l'identifiant ; LED rouge visible sur place | **V2** : le modèle ne vérifie pas qu'il s'agit d'un visage vivant, une photo peut suffire. Il faut quand même le mot de passe |
 | **SO6** (SS6, R6) Effacement des journaux | 1. Exploitant malveillant sur l'hôte · 2. Remise à l'état sain ou purge des volumes · 3. Les journaux de Loki disparaissent | Export des journaux avec empreintes (`scripts/export-logs.sh`), mais à lancer à la main | **V2** |
 
 R7 (rançongiciel, V1) et R8 (même chemin que SO1) ne sont pas détaillés.
@@ -182,7 +183,7 @@ Règle des niveaux, identique à la matrice initiale : 🔴 si G4 et V2 ou plus 
 | R1 déni de service | Limite par client, blocage au WAF, redémarrage vérifié par une transaction | G2·V2 🟡, sous réserve du RTO mesuré (WOR-79) ; un partenaire bloqué à tort le reste jusqu'à une action manuelle | **Démo :** levée automatique des blocages. Industriel : protection en amont (REC-10) | G2·V2 🟡 |
 | R2 injection | WAF CRS bloquant, détection, blocage, retour à l'état sain | G4·V3 🔴 : une seule tentative d'injection, même bloquée, déclenche la restauration qui efface toutes les transactions (SO2b) | **Démo :** ne pas restaurer quand le WAF a tout bloqué, API sur PostgreSQL, sauvegarde avant essai, attaque B recâblée. Industriel : correction du code, restauration à un instant précis (REC-6) | G3·V1 🟡 avec REC-6 |
 | R3 remédiation détournée | Signature HMAC, liste fermée, garde-fous, écoute hors réseau | G4·V2 🔴 | **Démo :** moteur en conteneur, sans droits Docker complets. Industriel : REC-2, REC-3, REC-4 | G4·V1 🟠 |
-| R4 usurpation | Limite de 12 essais par 15 min, verrouillage progressif de l'identifiant, visage exigé pour le back-office | G3·V1 🟡 | **Démo :** ne plus renvoyer le code de vérification. Industriel : double authentification pour les clients | G3·V1 🟡 |
+| R4 usurpation | Limite de 12 essais par 15 min, verrouillage progressif de l'identifiant, visage exigé pour le back-office | G3·V2 🟠 : un visage en photo peut passer (SO5b) ; deviner un mot de passe est devenu impraticable (SO5) | **Démo :** ne plus renvoyer le code de vérification. Industriel : double authentification pour les clients, détection du vivant pour la reconnaissance faciale (SO5b) | G3·V1 🟡 |
 | R5 exfiltration | Socle : seul le WAF est exposé au réseau | G3·V3 🟠 si le déploiement autonome de Pay&Go tourne | **Démo :** fermer le port 55432, secrets de l'application dans Vault | G3·V1 🟡 |
 | R6 journaux | Export avec empreintes, Loki 7 jours | G3·V2 🟠 | **Démo :** export appelé avant toute restauration ou remise à l'état sain. Industriel : journaux hors de l'hôte, immuables | G3·V1 🟡 |
 | R7 rançongiciel | Aucune | G4·V1 🟠 | Industriel : sauvegardes hors site, deuxième site (REC-5, REC-9) | G4·V1 🟠 |
@@ -193,10 +194,10 @@ Règle des niveaux, identique à la matrice initiale : 🔴 si G4 et V2 ou plus 
 | Gravité \ Vraisemblance | V1 | V2 | V3 | V4 |
 |---|---|---|---|---|
 | **G4** | R7 | **R3** | **R2** | |
-| **G3** | R4 | R6 | R5 | |
+| **G3** | | R4, R6 | R5 | |
 | **G2** | | R1, R8 | | |
 
-*Actuel.* Une fois les mesures « démo » faites : R2 passe en G4·V1, R3 en G4·V1, R5 et R6 en G3·V1.
+*Actuel.* Une fois les mesures « démo » faites : R2 passe en G4·V1, R3 en G4·V1, R5 et R6 en G3·V1 ; R4 attend la détection du vivant pour passer en G3·V1.
 
 ### 5.3 Acceptation du risque résiduel
 

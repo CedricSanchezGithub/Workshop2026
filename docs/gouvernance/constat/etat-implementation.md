@@ -2,11 +2,11 @@
 
 > **Statut : constat.** Ce document décrit ce qui a été vérifié dans le code, avec ses sources. Les objectifs et les plans sont dans `cible/`.
 
-> Responsable : Cédric · Version 0.4 du 21/10/2026 · Relevé sur `main` après la fusion des PR #14 à #21, #24, #26 (moteur de remédiation, détection ML, tableau de bord), #29 (Pay&Go déplacé dans `services/payment-api/`), #47 à #53 et #55 (consigne additionnelle 1, tableaux Grafana, détecteur réentraîné)
+> Responsable : Cédric · Version 0.5 du 22/10/2026 · Relevé sur `main` après la fusion des PR #14 à #21, #24, #26 (moteur de remédiation, détection ML, tableau de bord), #29 (Pay&Go déplacé dans `services/payment-api/`), #47 à #53 et #55 (consigne additionnelle 1, tableaux Grafana, détecteur réentraîné)
 >
 > Les documents de gouvernance ont été écrits avant le code. Ce registre dit, pour chaque hypothèse importante, si le code la **confirme**, la **contredit** ou ne l'a **pas encore implémentée**. Il est à mettre à jour après chaque fusion importante et avant les essais (WOR-73).
 
-## 1. Ce qui existe au 21/10/2026
+## 1. Ce qui existe au 22/10/2026
 
 | Composant | État | Où |
 |---|---|---|
@@ -78,6 +78,7 @@ La chaîne attaque → détection → remédiation → vérification existe main
 | Verrouillage par identifiant : quelques essais au mauvais mot de passe bloquent le compte légitime, de plus en plus longtemps | R1 (disponibilité du back-office) | Faible : contournement de l'usurpation au prix d'un déni de service ciblé, classique et accepté |
 | Le back-office répond `FACE_VERIFICATION_REQUIRED` avant de vérifier le mot de passe | R4 | Faible : révèle qu'un compte existe et a un visage enrôlé |
 | Empreintes faciales des membres de l'équipe : données biométriques **réelles** (RGPD art. 9), alors que le reste des données est fictif | ER3, RGPD | Moyenne : consentement écrit des personnes enrôlées et effacement après la démo (`DELETE /users/{user}` ou purge du volume `face-data`) |
+| La reconnaissance faciale ne vérifie pas que le visage est vivant : une photo de l'administrateur peut passer (`services/face-recognition/`) | R4 | Moyenne : le mot de passe reste exigé. À citer en limite ; en production, détection du vivant |
 | Si le service de reconnaissance faciale tombe, l'administrateur ne peut plus se connecter (erreur 502) | R1 | Faible : dépendance à documenter dans le PCA (connexion de secours) |
 
 ## 4. Ce qu'il faut avant les essais
@@ -90,5 +91,5 @@ Par ordre de priorité, pour que la démo prouve ce que la gouvernance affirme :
 4. **Arbitrer la restauration après injection** : automatique (code actuel) ou validée par un humain (REC-2). Au minimum, ne pas restaurer quand le WAF a bloqué toutes les requêtes d'injection. Puis aligner le code ou la gouvernance. Gouvernance, Développement.
 5. **Appeler `scripts/export-logs.sh`** avant toute restauration et avant la remise à l'état sain. Développement, Infrastructure.
 6. **Chronométrer T1 → T6** sur trois essais par attaque (`cible/rto-rpo.md` §6). Tous.
-7. **Fermer le port 55432 et passer les secrets de l'application dans Vault.** Cybersécurité.
+7. **Fermer le port 55432 et passer les secrets de l'application dans Vault.** Le sujet exige aussi qu'aucun secret ne figure en clair dans l'archive du code (§7.4) : le mot de passe `payandgo` de `services/payment-api/infra/docker-compose.yml` doit en sortir avant le rendu. Cybersécurité.
 8. **Recueillir le consentement écrit** des personnes dont le visage est enrôlé et prévoir l'effacement après la démo. Gouvernance, Cybersécurité.
