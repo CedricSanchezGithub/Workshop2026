@@ -2,21 +2,21 @@
 
 > **Statut : cible.** Ce document décrit ce que l'équipe vise et a décidé, pas ce qui est déjà codé. L'état réel du code est suivi dans `constat/etat-implementation.md`.
 
-> Ticket : WOR-72 · Responsable : Cédric · Version 0.3 du 21/10/2026
+> Ticket : WOR-72 · Responsable : Cédric · Version 1.0 du 22/10/2026
 >
-> Synthèse des autres documents de `cible/`. Les preuves seront renseignées après les essais (WOR-79) ; d'ici là, elles sont marquées *à mesurer*.
+> Synthèse des autres documents de `cible/`. Les preuves viennent des répétitions du 22/10 (`rto-rpo.md` §6) ; celles qui restent à produire sont marquées *à mesurer*.
 
 ## Synthèse pour la direction
 
 1. **Un arrêt de paiement coûte peu pendant 5 minutes, puis le coût explose.** Une heure d'arrêt en pointe coûte environ 700 k€, essentiellement en pénalités contractuelles, et déclenche probablement une notification à l'ACPR au titre de DORA.
-2. **La reprise automatique est donc l'investissement prioritaire.** Le démonstrateur vise un retour du service vérifié en moins d'une minute sur un déni de service, contre 30 minutes ou plus pour une reprise manuelle.
+2. **La reprise automatique est donc l'investissement prioritaire.** Aux répétitions, le démonstrateur a rétabli le service en ≈ 40 s après un déni de service, vérifié par une transaction réelle et sans intervention humaine, contre 30 minutes ou plus pour une reprise manuelle.
 3. **Elle ne suffit pas pour une attaque sur l'intégrité des données.** Une injection impose de préserver les preuves, de vérifier les données et de notifier, même si le service revient vite. En production, l'automate ne doit pas décider seul dans ce cas ; le démonstrateur le fait, pour la démonstration.
 4. **Le démonstrateur repose sur un seul serveur.** C'est acceptable pour prouver le principe, pas pour la production : un deuxième site et des sauvegardes hors site sont la première dépense à prévoir.
 5. **Nous demandons trois décisions** à la direction (dernière section).
 
-## 0. Avant toute recommandation : ce que l'équipe doit livrer d'ici les essais
+## 0. Ce que les essais ont prouvé, et ce qui manque
 
-Au 20/10, la chaîne détection → remédiation → vérification est codée, mais pas encore mesurée. Il manque la sauvegarde de la base, et dans le socle l'API garde ses données en mémoire : chaque redémarrage ou restauration perd les transactions. Sans eux, les éléments vérifiables cités ci-dessous resteront vides. La liste priorisée est dans `constat/etat-implementation.md` §4.
+Au 22/10, la chaîne détection → remédiation → vérification est codée et mesurée sur l'attaque A : reprise en ≈ 40 s, sans transaction perdue ni intervention humaine. Il manque la sauvegarde de la base, et dans le socle l'API garde ses données en mémoire : un redémarrage ou une restauration perd les transactions. Les écarts restants sont dans `constat/etat-implementation.md` §4.
 
 ## 1. Les arbitrages que nous avons faits
 
@@ -38,9 +38,9 @@ Chaque recommandation repose sur un élément **vérifiable**, issu de nos essai
 
 | # | Recommandation | Élément vérifiable | Effort |
 |---|---|---|---|
-| REC-1 | **Généraliser la reprise automatique** aux incidents de disponibilité sur toute la chaîne de paiement | RTO mesuré sur 3 essais, pire cas retenu (*à mesurer*) ; nombre d'interventions humaines pendant les répétitions : objectif 0 (WOR-78) | Moyen |
+| REC-1 | **Généraliser la reprise automatique** aux incidents de disponibilité sur toute la chaîne de paiement | Reprise totale mesurée : ≈ 40 s sur l'attaque A ; interventions humaines pendant les répétitions : 0 (WOR-78) | Moyen |
 | REC-2 | **Garder un humain dans la boucle pour les incidents d'intégrité** : blocage automatique, mais restauration et notification validées par une personne. Le démonstrateur restaure automatiquement : c'est un choix de démo, pas une cible de production | Fiche S2 du PCA ; délai entre l'alerte et la décision humaine, à mesurer en exercice | Faible |
-| REC-3 | **Exiger deux signaux concordants** avant toute action destructrice (le démonstrateur agit sur une seule alerte ML) | Taux de faux positifs du modèle ML (WOR-52) ; nombre de remédiations à tort pendant le chaos engineering (WOR-76) (*à mesurer*) | Faible |
+| REC-3 | **Exiger deux signaux concordants** avant toute action destructrice (le démonstrateur agit sur une seule alerte ML) | Faux positifs du modèle : environ une fausse alerte de trafic toutes les 7 h ; le 21/10, deux fausses alertes d'injection ont chacune déclenché une restauration à tort (`ml/training/README.md`) | Faible |
 | REC-4 | **Encadrer le moteur de remédiation** comme un bien critique : périmètre d'actions limité, appels authentifiés, journalisation | Revue des droits du moteur (WOR-64) ; essai d'appel depuis un composant non autorisé, qui doit être refusé | Moyen |
 
 ### Priorité 2 — dans les 6 mois

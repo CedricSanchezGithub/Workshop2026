@@ -28,8 +28,8 @@
 |---|---|---|---|
 | Cadre de gestion du risque documenté, fonctions critiques identifiées | 6, 8 | EBIOS RM, services critiques chiffrés, biens supports reliés aux valeurs métier | ✅ |
 | Protection : moindre privilège, secrets, filtrage | 9 | WAF bloquant, secrets du socle dans Vault, conteneurs durcis, moteur de remédiation encadré ; authentification forte du back-office (visage puis mot de passe, verrouillage après 2 échecs), comme le demande l'art. 9.4 d) | 🟡 un seul hôte ; secrets de Pay&Go et port de sa base encore exposés |
-| Détection rapide des anomalies | 10 | Détection ML sur métriques et journaux ; délai attaque → alerte mesuré à l'essai | 🟡 délai pas encore mesuré |
-| Réponse et rétablissement | 11 | **Cœur de la démo** : remédiation automatique, puis transaction de test réussie ; durée comparée au RTO | 🟡 RTO pas encore mesuré |
+| Détection rapide des anomalies | 10 | Détection ML sur métriques et journaux ; alerte ≈ 30 s après le début de l'attaque A | ✅ |
+| Réponse et rétablissement | 11 | **Cœur de la démo** : remédiation automatique, puis transaction de test réussie ; reprise en ≈ 40 s sur l'attaque A, sous le RTO de 5 min | ✅ pour la disponibilité ; 🟡 pour l'intégrité (restauration qui perd les transactions) |
 | Tests du plan de continuité | 11.6 | Scénarios rejoués et chronométrés | 🟡 deux scénarios, pas de programme annuel |
 | Sauvegarde et restauration sans perte | 12 | Comptage des transactions avant et après reprise | ❌ aucune sauvegarde ; la restauration repart des données de départ |
 | Redondance | 12.4 | — | ❌ hôte unique, assumé |
