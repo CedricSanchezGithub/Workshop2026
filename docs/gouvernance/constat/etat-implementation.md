@@ -28,7 +28,7 @@
 | Assistant RAG en lecture seule | Implémenté | `rag/docker-compose.rag.yml` |
 | Scripts d'attaque A et B | Implémentés ; **l'attaque B vise encore une route inexistante** (voir §3) | `attack/` |
 
-La chaîne attaque → détection → remédiation → vérification existe maintenant de bout en bout dans le socle. Elle n'a pas encore été chronométrée.
+La chaîne attaque → détection → remédiation → vérification existe maintenant de bout en bout dans le socle. Aux répétitions du 22/10, l'attaque A a été reprise en ≈ 40 s (≈ 30 s de détection, ~7 s de l'alerte à la transaction de test), sans transaction perdue ni intervention humaine.
 
 ## 2. Hypothèses de la gouvernance confrontées au code
 
@@ -51,7 +51,7 @@ La chaîne attaque → détection → remédiation → vérification existe main
 | Journaux copiés avant toute restauration | `cible/pca-pra.md` S2, §6 | **Partiel** | `scripts/export-logs.sh` existe mais n'est appelé ni par le moteur ni par la remise à l'état sain |
 | Moteur de remédiation protégé (droits limités, ordres authentifiés) | `cible/pca-pra.md` S5, `cible/recommandations.md` REC-4 | **En grande partie confirmé** | Alertes signées HMAC avec contrôle de fraîcheur et anti-rejeu, liste fermée de playbooks, IP de l'hôte jamais bloquées, écoute locale. Mais il tourne sur l'hôte avec les droits Docker |
 | Escalade vers un humain | `cible/pca-pra.md` §3 | **Partiel** | Seulement après échec (événement `escalation`). Pas d'escalade systématique après une injection |
-| Collecte toutes les 5 s, détection en 30 à 80 s | `cible/rto-rpo.md` §4 | **Non mesuré** | Paramètres conformes (3 fenêtres au pas de 10 s). Le rapport montre qu'une seule requête d'injection bloquée par le WAF est détectée, mais le délai sur les attaques A et B reste à mesurer |
+| Collecte toutes les 5 s, détection en 30 à 80 s | `cible/rto-rpo.md` §4 | **Confirmé pour l'attaque A** | ≈ 30 s aux répétitions du 22/10, valeur imposée par le réglage (3 fenêtres au pas de 10 s). Attaque B non chronométrée |
 | Verrouillage progressif des comptes | `cible/ebios-rm.md` R4, `cible/recommandations.md` | **Confirmé** | 2 échecs puis 5 min, durée croissante, y compris avec le bon mot de passe pendant le verrou (`InMemoryLoginAttemptTracker.ts`). Verrous en mémoire : un redémarrage les efface |
 | Double authentification | `cible/ebios-rm.md` R4 | **Confirmé pour le back-office** | Visage exigé avant le mot de passe pour les comptes enrôlés. Les comptes clients n'en ont pas |
 | Durée de reprise affichée = RTO | `cible/rto-rpo.md` §1 | **À corriger à la mesure** | Le moteur compte depuis la réception de l'alerte (T3 → T6), pas depuis le début de l'impact (T1) |

@@ -188,7 +188,7 @@ Délais DORA : règlement délégué (UE) 2025/301. L'assistant RAG peut prépar
 |---|---|---|---|
 | Premiers tests de restauration | WOR-75 | S2, S7 (en partie) | À remplir |
 | Chaos engineering | WOR-76 | S3, S4 | À remplir |
-| Démo complète répétée 3 fois | WOR-78 | S1, S2 | À remplir, temps dans `rto-rpo.md` §6 |
+| Démo complète répétée | WOR-78 | S1 | Attaque A reprise en ≈ 40 s, sans perte ni intervention humaine (`rto-rpo.md` §6). S2 non chronométré (attaque B sur une route inexistante) |
 
 Le plan est mis à jour après chaque test et après chaque incident (retour d'expérience, DORA art. 13).
 

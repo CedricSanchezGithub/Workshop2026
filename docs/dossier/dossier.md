@@ -1,6 +1,6 @@
 # Dossier d'ingénierie et de gouvernance
 
-> Version 0.2 du 21/10/2026, avant les essais. Les sections marquées **À compléter** attendent les mesures des répétitions (WOR-78, WOR-79). Chaque pilier relit sa section avant le rendu.
+> Version 1.0 du 22/10/2026, après les répétitions.
 >
 > Les détails techniques restent dans le dépôt Git ; chaque section renvoie aux fichiers concernés.
 
@@ -103,19 +103,22 @@ Le RTO se mesure depuis la première transaction en échec, pas depuis l'alerte 
 
 ## 5. Résultats des essais
 
-**À compléter** après les répétitions (trois essais par attaque, pire cas retenu).
+Répétitions du 22/10 sur l'attaque A (déni de service), le scénario de la démonstration.
 
-| Mesure | Attaque A | Attaque B |
+| Mesure | Attaque A | Comment |
 |---|---|---|
-| Délai de détection (impact → alerte) | | |
-| RTO mesuré (impact → transaction réussie) | | |
-| Transactions perdues ou dupliquées | | |
-| Intervention humaine nécessaire | | |
+| Détection (attaque → alerte) | ≈ 30 s | Fixée par le réglage : l'alerte part après 3 fenêtres anormales consécutives, évaluées toutes les 10 s, pour éviter les faux positifs |
+| Reprise (alerte → transaction de test réussie) | ~7 s | Mesurée par le tableau de bord du moteur de remédiation |
+| **Reprise totale** | **≈ 40 s** | Sous l'objectif de 60 s de la démonstration et des 5 min du métier |
+| Transactions perdues | 0 | La reprise s'est faite par blocage de la source au WAF, sans redémarrage de l'API |
+| Intervention humaine | Aucune | |
+
+L'attaque B n'a pas été chronométrée : elle vise encore une route qui n'existe pas (`/api/pay`) et ne démontre que le blocage par le WAF.
 
 Déjà mesuré :
 
 - **WAF :** 9 vecteurs d'injection sur 10 bloqués en 403 (`infra/waf/README.md`).
-- **Détection :** réentraînée sur 7,3 h de trafic de la plateforme ; environ une fausse alerte de trafic toutes les 7 h, aucune d'injection en validation. Une seule requête d'injection bloquée par le WAF est détectée. Délai de détection des attaques A et B à mesurer (`ml/training/README.md`).
+- **Détection :** réentraînée sur 7,3 h de trafic de la plateforme ; environ une fausse alerte de trafic toutes les 7 h, aucune d'injection en validation. Une seule requête d'injection bloquée par le WAF est détectée. Détail du réglage : `ml/training/README.md`.
 
 ## 6. Sécurité
 

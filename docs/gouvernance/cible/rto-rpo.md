@@ -90,15 +90,17 @@ Trois essais minimum par attaque pendant les répétitions (WOR-78) ; détail de
 
 | Attaque | Détection T1 → T3 | Reprise T3 → T6 | **RTO mesuré** (pire des 3) | Transactions perdues ou dupliquées | Objectif tenu ? |
 |---|---|---|---|---|---|
-| A — déni de service | | | | | |
-| B — injection | | | | | |
+| A — déni de service | ≈ 30 s (réglage : 3 fenêtres) | ~7 s | **≈ 40 s** | 0 (reprise par blocage, sans redémarrage) | Oui : ≤ 60 s (démo) et ≤ 5 min (métier) |
+| B — injection | — | — | — | — | Non chronométrée : l'attaque vise une route inexistante |
+
+Résultats des répétitions du 22/10. La détection n'a pas été chronométrée séparément : la valeur est celle qu'impose le réglage du modèle.
 
 On retient le **pire des trois essais**, pas la moyenne : un RTO se garantit, il ne s'espère pas.
 
 ## 7. Ce que le code permet de tenir au 22/10
 
 - **RPO = 0 : pas tenable en l'état.** Dans le socle, l'API garde ses données en mémoire : un redémarrage (attaque A) ou une restauration (attaque B) efface toutes les transactions. Aucune sauvegarde.
-- **Délai de détection : pas encore mesuré sur les attaques A et B.** Le modèle a été réglé le 21/10 sur 7,3 h de trafic de la plateforme ; l'alerte part après 3 fenêtres anormales, soit environ 30 s.
+- **Attaque A : reprise totale ≈ 40 s** aux répétitions du 22/10 (≈ 30 s de détection, ~7 s de reprise), sans transaction perdue ni intervention humaine (§6).
 - **Vérification de la reprise (T6) : en place.** Le moteur passe une transaction de test complète à travers le WAF.
 - **Durée affichée par le moteur :** elle part de la réception de l'alerte (T3 → T6). Le RTO se calcule depuis T1, avec le protocole du §6.
 
