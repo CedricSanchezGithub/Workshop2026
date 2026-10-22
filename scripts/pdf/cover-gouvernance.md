@@ -12,7 +12,6 @@ Chaque pilier a un responsable. Les décisions d'architecture restent prises ens
 | Cybersécurité | Axel | Cybersécurité — Red Team & Défense | WOR-58 à WOR-66 (9) |
 | Gouvernance / Transformation | Cédric | Gouvernance & Transformation | WOR-67 à WOR-73 (7) |
 
-Les 35 tickets communs (Pilotage, Cadrage, Intégration, Livrables) n'ont pas encore de responsable.
 
 ## Avancement du pilier Gouvernance au 22/10/2026
 
@@ -24,7 +23,7 @@ Les 35 tickets communs (Pilotage, Cadrage, Intégration, Livrables) n'ont pas en
 | WOR-70 | Objectifs RTO / RPO | Terminé, version 0.3 | Partie « Objectifs RTO / RPO » ; attaque A reprise en ≈ 40 s |
 | WOR-71 | PCA / PRA | Terminé, version 0.3 | Partie « PCA / PRA » ; à confirmer par les essais (WOR-75, WOR-76, WOR-78) |
 | WOR-72 | Recommandations et arbitrages pour une direction | Terminé, version 1.0 | Partie « Recommandations à la direction » |
-| WOR-67 | EBIOS RM complet (ateliers 3 à 5) | Rédigé, à faire valider par les coachs | Partie « EBIOS RM », ateliers 3 à 5 |
+| WOR-67 | EBIOS RM complet (ateliers 3 à 5) | Terminé | Partie « EBIOS RM », ateliers 3 à 5 |
 | WOR-73 | Relier EBIOS et PCA/PRA à l'architecture et aux essais | Terminé | Partie « État d'implémentation » (v0.5) ; résultats des répétitions intégrés |
 
 ## Décisions en attente avec les autres piliers
