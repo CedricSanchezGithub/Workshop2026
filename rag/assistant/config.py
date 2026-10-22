@@ -19,6 +19,19 @@ TOP_K = int(os.environ.get("RAG_TOP_K", 4))
 MIN_RELEVANCE = float(os.environ.get("RAG_MIN_RELEVANCE", 0.50))
 ALLOWED_ORIGINS = [o for o in os.environ.get("ALLOWED_ORIGINS", "").split(",") if o]
 
+# Rapports d'incident écrits par le moteur de remédiation (services/remediation/remediation/reports.py),
+# montés en lecture seule ; indexés au fil de l'eau dans une collection séparée de la documentation.
+REPORTS_DIR = Path(os.environ.get("REPORTS_DIR", REPO / "services/remediation/data/reports"))
+REPORTS_COLLECTION = "incident-reports"
+REPORT_SCAN_S = float(os.environ.get("REPORT_SCAN_S", 15))
+REPORT_TOP_K = int(os.environ.get("RAG_REPORT_TOP_K", 3))
+REPORT_MIN_RELEVANCE = float(os.environ.get("RAG_REPORT_MIN_RELEVANCE", 0.45))
+# « Il y a 5 minutes » : la similarité ne connaît pas l'heure. Pour une question sur un événement,
+# les rapports de cette fenêtre sont ajoutés au contexte par date, les plus récents d'abord.
+RECENT_WINDOW_S = float(os.environ.get("RAG_RECENT_WINDOW_S", 2 * 3600))
+RECENT_MAX = int(os.environ.get("RAG_RECENT_MAX", 3))
+TIMEZONE = os.environ.get("ASSISTANT_TZ", "Europe/Paris")
+
 
 def embeddings():
     """nomic-embed-text attend des préfixes de tâche ; sans eux les scores de pertinence se tassent
