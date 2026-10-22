@@ -145,7 +145,7 @@ Déjà mesuré :
 | Journaux exportables avec empreintes SHA-256 pour l'investigation | `scripts/export-logs.sh` |
 | Scripts d'attaque limités au réseau du groupe | `attack/` |
 
-**Points ouverts**, suivis dans `docs/gouvernance/constat/etat-implementation.md` : l'API du socle garde ses données en mémoire ; le moteur de remédiation a les droits Docker de l'hôte ; le déploiement autonome de Pay&Go expose sa base (port 55432) avec un mot de passe dans le dépôt ; l'API renvoie le code de vérification des paiements ; une tentative d'injection bloquée par le WAF déclenche quand même la restauration ; les visages enrôlés sont des données biométriques réelles (consentement et effacement à prévoir) ; la reconnaissance faciale ne détecte pas une photo présentée à la caméra, le mot de passe reste donc indispensable.
+**Points ouverts**, suivis dans `docs/gouvernance/constat/etat-implementation.md` : l'API du socle garde ses données en mémoire ; le moteur de remédiation a les droits Docker de l'hôte ; le déploiement autonome de Pay&Go expose sa base (port 55432) avec un mot de passe dans le dépôt ; l'API renvoie le code de vérification des paiements ; une tentative d'injection bloquée par le WAF déclenche quand même la restauration ; les visages enrôlés sont des données biométriques réelles (consentement et effacement à prévoir, cadre RGPD dans `docs/governance/rgpd-biometrie.md`) ; la reconnaissance faciale ne détecte pas une photo présentée à la caméra, le mot de passe reste donc indispensable.
 
 ## 7. Gouvernance : risques, reprise et conformité
 
@@ -221,3 +221,5 @@ Documents complets : `docs/gouvernance/cible/` (EBIOS RM, services critiques, NI
 | Runbooks d'incident et de reprise | `docs/runbooks/` |
 | Rapport d'entraînement du modèle | `ml/training/report.md` |
 | Gouvernance complète | `docs/gouvernance/` |
+| Biométrie et RGPD (double authentification du back-office) | `docs/governance/rgpd-biometrie.md` |
+| Démonstration de la double authentification et de la LED | `docs/demo-mfa-led.md` |
