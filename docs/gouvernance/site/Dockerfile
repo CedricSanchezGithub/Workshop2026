@@ -2,7 +2,7 @@
 # Contexte de construction : docs/gouvernance (le site lit les .md du dossier parent).
 #   docker compose -f docs/gouvernance/site/docker-compose.yml up --build
 
-FROM node:22-alpine AS build
+FROM node:25-alpine AS build
 WORKDIR /gouvernance/site
 COPY site/package.json site/package-lock.json ./
 RUN npm ci --no-audit --no-fund
@@ -14,6 +14,6 @@ COPY constat/ /gouvernance/constat/
 COPY autre/ /gouvernance/autre/
 RUN npm run build
 
-FROM nginxinc/nginx-unprivileged:1.30-alpine
+FROM nginxinc/nginx-unprivileged:1.31-alpine
 COPY --from=build /gouvernance/site/dist /usr/share/nginx/html
 EXPOSE 8080
