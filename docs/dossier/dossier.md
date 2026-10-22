@@ -17,22 +17,9 @@
 
 ### 2.1 Vue d'ensemble
 
-```
- Clients légitimes ─┐
- PC Attaquant ──────┴─► WAF (port 8080) ──► API de paiement
-                         ▲  IP bloquées       │ métriques, journaux
-                         │                    ▼
-                         │            Prometheus + Loki ──► Grafana
-                         │                    │                (SOC)
-                         │                    ▼
-                         │            Détection ML
-                         │                    │ alerte signée
-                         │                    ▼
-              Playbooks Ansible ◄── Moteur de remédiation
-              (blocage, redémarrage,   │
-               restauration)           ├─► transaction de test
-                                       └─► tableau de bord
-```
+![Architecture de la démonstration](architecture-demo.png)
+
+Source modifiable : `docs/dossier/architecture-demo.drawio` (draw.io).
 
 Trois flux : **le trafic** (clients et attaquant → WAF → API) ; **l'observation** (métriques toutes les 5 s, journaux de tous les conteneurs) ; **la réaction** (alerte signée → moteur → playbook → vérification par transaction).
 

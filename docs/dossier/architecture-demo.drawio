@@ -1,0 +1,113 @@
+<mxfile host="Electron">
+  <diagram name="Démo" id="demo">
+    <mxGraphModel dx="1682" dy="1314" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="980" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="title" parent="1" style="text;html=1;fontSize=22;fontStyle=1;align=center;verticalAlign=middle;" value="Démonstration — architecture physique (Groupe 6, PROJECT RESILIENCE-ALPHA)" vertex="1">
+          <mxGeometry height="40" width="1560" x="20" y="10" as="geometry" />
+        </mxCell>
+        <mxCell id="net" parent="1" style="rounded=1;whiteSpace=wrap;html=1;verticalAlign=top;align=left;spacingLeft=10;spacingTop=6;fontSize=15;fontStyle=1;arcSize=3;fillColor=#f5f5f5;strokeColor=#999999;dashed=1;fontColor=#555555;" value="Réseau WiFi RESILIENCE-G6 — point d&#39;accès délivré par le PC Hôte (192.168.137.1)" vertex="1">
+          <mxGeometry height="900" width="1560" x="20" y="60" as="geometry" />
+        </mxCell>
+        <mxCell id="host" parent="1" style="rounded=1;whiteSpace=wrap;html=1;verticalAlign=top;align=left;spacingLeft=10;spacingTop=6;fontSize=15;fontStyle=1;arcSize=3;fillColor=#dae8fc;strokeColor=#6c8ebf;" value="PC Hôte" vertex="1">
+          <mxGeometry height="830" width="1020" x="50" y="100" as="geometry" />
+        </mxCell>
+        <mxCell id="docker" parent="1" style="rounded=1;whiteSpace=wrap;html=1;verticalAlign=top;align=left;spacingLeft=10;spacingTop=6;fontSize=15;fontStyle=1;arcSize=3;fillColor=#ffffff;strokeColor=#6c8ebf;dashed=1;fontSize=13;" value="Docker Compose" vertex="1">
+          <mxGeometry height="620" width="720" x="70" y="200" as="geometry" />
+        </mxCell>
+        <mxCell id="ext" parent="1" style="rounded=1;whiteSpace=wrap;html=1;verticalAlign=top;align=left;spacingLeft=10;spacingTop=6;fontSize=15;fontStyle=1;arcSize=3;fillColor=#ffffff;strokeColor=#6c8ebf;dashed=1;fontSize=13;" value="Sur l&#39;hôte, hors Docker" vertex="1">
+          <mxGeometry height="620" width="240" x="810" y="200" as="geometry" />
+        </mxCell>
+        <mxCell id="legit" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fontSize=13;arcSize=12;fillColor=#d5e8d4;strokeColor=#82b366;" value="Trafic légitime&lt;br&gt;&lt;font style=&#39;font-size:11px&#39;&gt;4 clients fictifs (profil demo)&lt;/font&gt;" vertex="1">
+          <mxGeometry height="70" width="200" x="90" y="250" as="geometry" />
+        </mxCell>
+        <mxCell id="face" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fontSize=13;arcSize=12;fillColor=#fff2cc;strokeColor=#d6b656;" value="Reconnaissance faciale&lt;br&gt;&lt;font style=&#39;font-size:11px&#39;&gt;InsightFace, hors ligne&lt;/font&gt;" vertex="1">
+          <mxGeometry height="70" width="200" x="90" y="390" as="geometry" />
+        </mxCell>
+        <mxCell id="vault" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fontSize=13;arcSize=12;fillColor=#eeeeee;strokeColor=#666666;" value="Vault (secrets)" vertex="1">
+          <mxGeometry height="60" width="200" x="90" y="530" as="geometry" />
+        </mxCell>
+        <mxCell id="waf" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fontSize=13;arcSize=12;fillColor=#f8cecc;strokeColor=#b85450;" value="&lt;b&gt;WAF&lt;/b&gt; ModSecurity + OWASP CRS&lt;br&gt;:8080 — seul point d&#39;entrée" vertex="1">
+          <mxGeometry height="80" width="220" x="340" y="250" as="geometry" />
+        </mxCell>
+        <mxCell id="api" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fontSize=13;arcSize=12;fillColor=#fff2cc;strokeColor=#d6b656;" value="&lt;b&gt;API Pay&amp;amp;Go&lt;/b&gt;&lt;br&gt;paiements, back-office&lt;br&gt;&lt;font color=&#39;#b85450&#39;&gt;données en mémoire&lt;/font&gt;" vertex="1">
+          <mxGeometry height="80" width="220" x="340" y="390" as="geometry" />
+        </mxCell>
+        <mxCell id="prom" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fontSize=13;arcSize=12;fillColor=#e1d5e7;strokeColor=#9673a6;" value="Prometheus + Loki&lt;br&gt;&lt;font style=&#39;font-size:11px&#39;&gt;métriques toutes les 5 s, journaux&lt;/font&gt;" vertex="1">
+          <mxGeometry height="70" width="220" x="340" y="530" as="geometry" />
+        </mxCell>
+        <mxCell id="graf" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fontSize=13;arcSize=12;fillColor=#e1d5e7;strokeColor=#9673a6;" value="&lt;b&gt;Grafana&lt;/b&gt; :3000&lt;br&gt;&lt;font style=&#39;font-size:11px&#39;&gt;SOC, plateforme, détection et reprise&lt;/font&gt;" vertex="1">
+          <mxGeometry height="70" width="220" x="340" y="670" as="geometry" />
+        </mxCell>
+        <mxCell id="ml" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fontSize=13;arcSize=12;fillColor=#e1d5e7;strokeColor=#9673a6;" value="&lt;b&gt;Détection ML&lt;/b&gt;&lt;br&gt;&lt;font style=&#39;font-size:11px&#39;&gt;3 fenêtres anormales (≈ 30 s), puis alerte signée&lt;/font&gt;" vertex="1">
+          <mxGeometry height="90" width="170" x="590" y="430" as="geometry" />
+        </mxCell>
+        <mxCell id="engine" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fontSize=13;arcSize=12;fillColor=#ffe6cc;strokeColor=#d79b00;" value="&lt;b&gt;Moteur de remédiation&lt;/b&gt;&lt;br&gt;+ tableau de bord&lt;br&gt;127.0.0.1:8090&lt;br&gt;&lt;font style=&#39;font-size:11px&#39;&gt;playbooks Ansible, liste fermée&lt;/font&gt;" vertex="1">
+          <mxGeometry height="130" width="200" x="830" y="430" as="geometry" />
+        </mxCell>
+        <mxCell id="cam" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fontSize=13;arcSize=12;fillColor=#f5f5f5;strokeColor=#666666;" value="Caméra USB&lt;br&gt;&lt;font style=&#39;font-size:11px&#39;&gt;obligatoire sur le PC Hôte&lt;/font&gt;" vertex="1">
+          <mxGeometry height="50" width="200" x="830" y="660" as="geometry" />
+        </mxCell>
+        <mxCell id="browser" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fontSize=13;arcSize=12;fillColor=#f5f5f5;strokeColor=#666666;" value="Navigateur back-office&lt;br&gt;localhost:5173&lt;br&gt;&lt;font style=&#39;font-size:11px&#39;&gt;identifiant → visage → mot de passe, via le WAF&lt;/font&gt;" vertex="1">
+          <mxGeometry height="80" width="200" x="830" y="720" as="geometry" />
+        </mxCell>
+        <mxCell id="note" parent="1" style="text;html=1;whiteSpace=wrap;align=left;verticalAlign=top;fontSize=13;spacingLeft=6;" value="&lt;b&gt;À l&#39;écran du PC Hôte (vidéoprojecteur)&lt;/b&gt; : tableau de bord du moteur (avant, pendant, après l&#39;incident), puis connexion au back-office.&lt;br&gt;&lt;b&gt;Ne rien toucher pendant la reprise&lt;/b&gt; : une intervention manuelle vaut 0/5 sur l&#39;axe 1. Après une reprise, les alertes sont ignorées 180 s (voulu).&lt;br&gt;Faire la démo visage + LED &lt;b&gt;avant&lt;/b&gt; l&#39;attaque : l&#39;API est en mémoire, un redémarrage efface le compte administrateur." vertex="1">
+          <mxGeometry height="90" width="980" x="70" y="830" as="geometry" />
+        </mxCell>
+        <mxCell id="att" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fontSize=13;arcSize=12;fillColor=#f8cecc;strokeColor=#b85450;" value="&lt;b&gt;PC Attaquant&lt;/b&gt; — Axel&lt;br&gt;attack-a.sh --target 192.168.137.1 --port 8080&lt;br&gt;&lt;font style=&#39;font-size:11px&#39;&gt;garde-fou : réseau du groupe uniquement&lt;/font&gt;" vertex="1">
+          <mxGeometry height="100" width="410" x="1130" y="110" as="geometry" />
+        </mxCell>
+        <mxCell id="esp" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fontSize=13;arcSize=12;fillColor=#d5e8d4;strokeColor=#82b366;" value="&lt;b&gt;ESP8266 + LED bicolore&lt;/b&gt; — Michael, Axel&lt;br&gt;WiFi 2,4 GHz, interroge GET /v1/device/led via le WAF&lt;br&gt;&lt;font style=&#39;font-size:11px&#39;&gt;vert = reconnu / accès accordé, rouge = refus&lt;/font&gt;" vertex="1">
+          <mxGeometry height="100" width="410" x="1130" y="290" as="geometry" />
+        </mxCell>
+        <mxCell id="e1" edge="1" parent="1" source="att" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeWidth=2;strokeColor=#b85450;fontColor=#b85450;fontSize=12;fontStyle=1;labelBackgroundColor=#ffffff;endArrow=block;endFill=1;exitX=0;exitY=0.5;entryX=0.5;entryY=0;" target="waf" value="1. Attaque A : déni de service">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="450" y="160" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e2" edge="1" parent="1" source="legit" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeWidth=2;strokeColor=#82b366;fontColor=#82b366;fontSize=12;fontStyle=1;labelBackgroundColor=#ffffff;endArrow=block;endFill=1;" target="waf" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e3" edge="1" parent="1" source="waf" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeWidth=2;strokeColor=#333333;fontColor=#333333;fontSize=12;fontStyle=1;labelBackgroundColor=#ffffff;endArrow=block;endFill=1;" target="api" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e4" edge="1" parent="1" source="api" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeWidth=2;strokeColor=#333333;fontColor=#333333;fontSize=12;fontStyle=1;labelBackgroundColor=#ffffff;endArrow=block;endFill=1;" target="face" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e5" edge="1" parent="1" source="api" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeWidth=2;strokeColor=#9673a6;fontColor=#9673a6;fontSize=12;fontStyle=1;labelBackgroundColor=#ffffff;endArrow=block;endFill=1;" target="prom" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e6" edge="1" parent="1" source="prom" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeWidth=2;strokeColor=#9673a6;fontColor=#9673a6;fontSize=12;fontStyle=1;labelBackgroundColor=#ffffff;endArrow=block;endFill=1;" target="graf" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e7" edge="1" parent="1" source="prom" style="exitX=1;exitY=0.5;entryX=0.5;entryY=1;edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeWidth=2;strokeColor=#9673a6;fontColor=#9673a6;fontSize=12;fontStyle=1;labelBackgroundColor=#ffffff;endArrow=block;endFill=1;" target="ml" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e8" edge="1" parent="1" source="ml" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeWidth=2;strokeColor=#d79b00;fontColor=#d79b00;fontSize=12;fontStyle=1;labelBackgroundColor=#ffffff;endArrow=block;endFill=1;" target="engine" value="2. alerte">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e9" edge="1" parent="1" source="engine" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeWidth=2;strokeColor=#d79b00;fontColor=#d79b00;fontSize=12;fontStyle=1;labelBackgroundColor=#ffffff;endArrow=block;endFill=1;exitX=0.8;exitY=0;entryX=1;entryY=0.5;" target="waf" value="3. blocage IP (403) + transaction de test">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="990" y="290" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e10" edge="1" parent="1" source="engine" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeWidth=2;strokeColor=#d79b00;fontColor=#d79b00;fontSize=12;fontStyle=1;labelBackgroundColor=#ffffff;endArrow=block;endFill=1;dashed=1;exitX=0.2;exitY=0;entryX=1;entryY=0.5;" target="api" value="3 bis. redémarrage / restauration">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="870" y="410" />
+              <mxPoint x="580" y="410" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e11" edge="1" parent="1" source="cam" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeWidth=2;strokeColor=#333333;fontColor=#333333;fontSize=12;fontStyle=1;labelBackgroundColor=#ffffff;endArrow=block;endFill=1;" target="browser" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
