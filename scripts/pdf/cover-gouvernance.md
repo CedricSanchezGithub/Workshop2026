@@ -17,7 +17,7 @@ Chaque pilier a un responsable. Les décisions d'architecture restent prises ens
 
 | Ticket | Sujet | Statut | Livrable |
 |---|---|---|---|
-| WOR-31 | Matrice de risques EBIOS RM, version initiale | Terminé, validé par les coachs | Partie « EBIOS RM » |
+| WOR-31 | Matrice de risques EBIOS RM, version initiale | Terminé | Partie « EBIOS RM » |
 | WOR-68 | Services critiques et coût d'un arrêt de paiement | Terminé | Partie « Services critiques » |
 | WOR-69 | Analyse NIS2 / DORA | Terminé, version 0.3 | Partie « Analyse NIS2 / DORA » |
 | WOR-70 | Objectifs RTO / RPO | Terminé, version 0.3 | Partie « Objectifs RTO / RPO » ; attaque A reprise en ≈ 40 s |

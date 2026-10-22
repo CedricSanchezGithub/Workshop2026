@@ -4,7 +4,7 @@
 
 > Ticket : WOR-31 · Responsable : Cédric · Version 0.3 du 21/10/2026
 >
-> Ateliers 1 et 2 : version 0.1, **validée par les coachs** (WOR-32). Ateliers 3 à 5 : ajoutés en version 0.2 (WOR-67), sur les composants réels relevés dans `constat/etat-implementation.md`.
+> Ateliers 1 et 2 : version 0.1 (WOR-31). Ateliers 3 à 5 : ajoutés en version 0.2 (WOR-67), sur les composants réels relevés dans `constat/etat-implementation.md`.
 
 ## Hypothèses de travail
 
