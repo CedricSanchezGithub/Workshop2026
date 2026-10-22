@@ -318,7 +318,7 @@ services:
       - backend      # joignable par le WAF ; pas de port publié
     cap_drop: [ALL]
     healthcheck:
-      test: ["CMD", "wget", "-qO", "/dev/null", "http://localhost:8080/"]
+      test: ["CMD", "wget", "-qO", "/dev/null", "http://127.0.0.1:8080/"]
       interval: 10s
       timeout: 3s
       retries: 10
