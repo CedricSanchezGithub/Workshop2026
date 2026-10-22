@@ -124,7 +124,7 @@ document.getElementById("f").addEventListener("submit", async (e) => {
         div.id = `src-${id}-${s.ref}`;
         const head = document.createElement("div");
         head.className = "src-head";
-        head.textContent = `[${s.ref}] ${s.source}${s.section ? " — " + s.section : ""} · pertinence ${s.relevance}`;
+        head.textContent = `[${s.ref}] ${s.source}${s.section ? " — " + s.section : ""} · ${s.relevance == null ? "retenu par date" : "pertinence " + s.relevance}`;
         const ex = document.createElement("div");
         ex.className = "md";
         ex.innerHTML = Markdown.renderMarkdown(s.excerpt);

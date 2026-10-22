@@ -10,16 +10,33 @@ L'index vectoriel (`vectorstore/`) est régénérable → non versionné (.gitig
 
 ## Mise en œuvre
 
-- `assistant/ingest.py` indexe `docs/**/*.md|pdf` par section dans Chroma (`rag/vectorstore/`, non versionné).
-- `assistant/app.py` : `POST /ask` (réponse + sources citées), `/health`, page de test sur `/`. Lecture seule, sans outil ; si aucun extrait n'est pertinent (score < 0,50), répond « je ne trouve rien » sans appeler le LLM.
+- `assistant/ingest.py` indexe `docs/**/*.md|pdf` par section dans Chroma (collection `resilience-docs`). L'API le lance elle-même au démarrage, en arrière-plan, et réessaie tant qu'Ollama ne répond pas.
+- `assistant/reports.py` suit les **rapports d'incident** écrits par le moteur de remédiation (`services/remediation/data/reports/`, monté en lecture seule) et les indexe au fil de l'eau (toutes les 15 s, collection `incident-reports`, un rapport = un extrait).
+- `assistant/app.py` : `POST /ask` (réponse + sources citées), `/health` (Ollama, modèles, index), `/live` (healthcheck), page de test sur `/`. Lecture seule, sans outil ; si aucun extrait n'est pertinent (score < 0,50), répond « je ne trouve rien » sans appeler le LLM.
 - LLM `qwen2.5:7b` (7 Md de paramètres) ; embeddings `bge-m3` (multilingue, retenu car `nomic-embed-text` ne séparait pas les questions hors sujet en français). Modèles gardés en mémoire GPU 4 h (`LLM_KEEP_ALIVE_S`).
 
+### Questions sur un incident (« le site était lent il y a 5 minutes ? »)
+
+La recherche vectorielle ne connaît pas l'heure. Trois mécanismes :
+1. Les rapports donnent des heures absolues et décrivent les symptômes en clair (« site lent », « requêtes refusées »).
+2. L'heure actuelle (Europe/Paris) est donnée au modèle avec chaque question.
+3. Si la question porte sur un événement (« il y a », « tout à l'heure », « lent », « panne », « incident », « slow », « ago »…), les rapports des 2 dernières heures sont ajoutés au contexte **par date**, les plus récents d'abord (`RAG_RECENT_WINDOW_S`). S'il n'y en a aucun, l'assistant le dit (« aucun incident ni alerte enregistré entre … et … »).
+
+Rapports couverts : chaque incident traité (symptômes, IP, actions, durée, issue, fin des symptômes) et chaque alerte ignorée pendant la stabilisation qui suit une restauration.
+
+### Lancer
+
+Service `assistant` du compose principal, démarré par `ansible-playbook playbooks/deploy.yml` (page : `http://<ASSISTANT_BIND>:8100`). Conteneur isolé : réseau dédié sans accès à la plateforme, docs et rapports en lecture seule, FS read-only, sans socket Docker ni capabilities.
+
+Ollama tourne sur l'hôte (`ollama pull qwen2.5:7b && ollama pull bge-m3`) et doit être joignable depuis le conteneur (`host.docker.internal:11434`) :
+- **Windows / Docker Desktop** : rien à faire.
+- **Linux** : Ollama n'écoute que sur 127.0.0.1 par défaut. `sudo systemctl edit ollama`, ajouter
+  `[Service]` puis `Environment="OLLAMA_HOST=0.0.0.0:11434"`, puis `sudo systemctl restart ollama`. Le pare-feu (ufw, refus par défaut) bloque le port 11434 depuis le réseau.
+
+En développement, sans conteneur :
+
 ```bash
-ollama pull qwen2.5:7b && ollama pull bge-m3
 cd rag && uv sync
-uv run python -m assistant.ingest                 # à relancer après chaque modification de docs/
-uv run uvicorn assistant.app:app --port 8100      # page de test : http://localhost:8100
+uv run uvicorn assistant.app:app --port 8100      # indexe docs/ au démarrage ; page : http://localhost:8100
 uv run pytest
 ```
-
-En conteneur isolé (docs en lecture seule, FS read-only, sans socket Docker ni capabilities) : `docker compose -f rag/docker-compose.rag.yml up -d --build`. Ollama doit être joignable depuis le conteneur (`OLLAMA_URL`).

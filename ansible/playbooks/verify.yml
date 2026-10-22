@@ -6,6 +6,7 @@
   vars:
     grafana_bind: "{{ lookup('ansible.builtin.ini', 'GRAFANA_BIND', type='properties', file=infra_dir ~ '/.env', default='127.0.0.1') }}"
     grafana_port: "{{ lookup('ansible.builtin.ini', 'GRAFANA_PORT', type='properties', file=infra_dir ~ '/.env', default='3000') }}"
+    assistant_port: "{{ lookup('ansible.builtin.ini', 'ASSISTANT_PORT', type='properties', file=infra_dir ~ '/.env', default='8100') }}"
   tasks:
     - name: Vault est initialisé, descellé et actif
       ansible.builtin.uri:
@@ -153,6 +154,16 @@
           tags: [remediation]
       tags: [remediation]
 
+    # Informatif : l'assistant démarre sans Ollama et indexe dès qu'il répond. Sous Linux, Ollama doit
+    # écouter au-delà de 127.0.0.1 pour être joint depuis le conteneur (rag/README.md).
+    - name: État de l'assistant RAG (Ollama joignable, documentation indexée)
+      ansible.builtin.uri:
+        url: "http://127.0.0.1:{{ assistant_port }}/health"
+        return_content: true
+        status_code: [200, 503]
+      register: assistant_health
+      failed_when: false
+
     - name: Résumé
       ansible.builtin.debug:
         msg:
@@ -163,3 +174,4 @@
           - "Prometheus : http://127.0.0.1:9090"
           - "Loki       : http://127.0.0.1:3100"
           - "Supervision (moteur de remédiation) : http://127.0.0.1:{{ remediation_port }}"
+          - "Assistant RAG : http://127.0.0.1:{{ assistant_port }} — {{ assistant_health.json | default(assistant_health.msg | default('injoignable')) }}"

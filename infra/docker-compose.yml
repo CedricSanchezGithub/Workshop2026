@@ -492,6 +492,48 @@ services:
           cpus: "0.2"
           memory: 96M
 
+  # Assistant opérateur RAG (WOR-55/56/57) : Ollama sur l'hôte (qwen2.5:7b, bge-m3), LangChain, Chroma.
+  # Indexe docs/ et les rapports d'incident écrits par le moteur de remédiation (lecture seule).
+  # Isolation (exigence du sujet) : réseau dédié, aucun réseau de la plateforme, pas de socket Docker,
+  # pas de secret, système de fichiers en lecture seule, aucune capacité.
+  assistant:
+    <<: *hardening
+    build:
+      context: ../rag
+      dockerfile: assistant/Dockerfile
+    image: resilience-alpha/assistant:dev
+    environment:
+      OLLAMA_URL: "http://host.docker.internal:11434"
+      LLM_MODEL: "qwen2.5:7b"
+      EMBED_MODEL: "bge-m3"
+      ASSISTANT_TZ: "Europe/Paris"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ../docs:/docs:ro
+      # Créé par deploy.yml avant le démarrage (sinon Docker le crée en root et le moteur n'y écrit plus)
+      - ../services/remediation/data/reports:/reports:ro
+      - assistant-data:/data
+    ports:
+      - "${ASSISTANT_BIND:-127.0.0.1}:${ASSISTANT_PORT:-8100}:8100"
+    networks:
+      - assistant
+    read_only: true
+    tmpfs: [/tmp]
+    cap_drop: [ALL]
+    # /live : processus vivant, indépendamment d'Ollama (l'indexation reprend quand Ollama répond)
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8100/live',timeout=3).status==200 else 1)"]
+      interval: 10s
+      timeout: 4s
+      retries: 10
+      start_period: 15s
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 1G
+
 networks:
   # Données métier : aucun accès sortant, aucun port publiable
   backend:
@@ -504,8 +546,11 @@ networks:
   # socket-proxy <-> alloy uniquement
   docker-api:
     internal: true
+  # Assistant RAG seul : accès à Ollama sur l'hôte, aucun service de la plateforme
+  assistant: {}
 
 volumes:
+  assistant-data:   # index Chroma (documentation + rapports d'incident), régénérable
   postgres-data:
   prometheus-data:
   loki-data:
