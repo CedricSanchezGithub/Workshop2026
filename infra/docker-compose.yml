@@ -301,6 +301,34 @@ services:
           cpus: "0.75"
           memory: 384M
 
+  # Site Pay&Go (front React/Vite, WOR-35) servi en statique par nginx. Jamais publié : le WAF
+  # proxifie « / » vers ce conteneur et « /v1,/health,… » vers payment-api, donc le site et l'API
+  # partagent la même origine (le WAF) — aucun CORS, et les appels API passent par le CRS.
+  # Build avec VITE_PAYMENT_API_URL vide => URLs relatives (/v1/...), valables depuis n'importe
+  # quelle adresse (localhost comme réseau), sans recompiler.
+  web:
+    <<: *hardening
+    build:
+      context: ../services/payment-api
+      dockerfile: infra/docker/Dockerfile.web
+      args:
+        VITE_PAYMENT_API_URL: ""
+    image: resilience-alpha/payment-web:dev
+    networks:
+      - backend      # joignable par le WAF ; pas de port publié
+    cap_drop: [ALL]
+    healthcheck:
+      test: ["CMD", "wget", "-qO", "/dev/null", "http://localhost:8080/"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          cpus: "0.25"
+          memory: 128M
+
   # Reconnaissance faciale (WOR-95) — IA légère (InsightFace) appelée par le back-office
   # pour la MFA (consigne additionnelle 1). Interne, jamais publiée. Stocke uniquement des
   # embeddings (RGPD, WOR-101). /metrics -> Prometheus, logs JSON -> Loki.
@@ -365,6 +393,8 @@ services:
       # Surcharge de l'include proxy : résolution différée du backend (le WAF démarre sans l'API)
       - ./waf/templates/includes/proxy_backend.conf.template:/etc/nginx/templates/includes/proxy_backend.conf.template:ro
       - ./waf/templates/nginx.conf.template:/etc/nginx/templates/nginx.conf.template:ro
+      # Routage : /v1,/health,/metrics,/docs,/openapi.json -> payment-api ; le reste -> conteneur web (site Pay&Go)
+      - ./waf/templates/conf.d/default.conf.template:/etc/nginx/templates/conf.d/default.conf.template:ro
       # Remédiation (WOR-38) : règle fixe chargée avant le CRS + liste d'IP bloquées écrite par Ansible.
       # Le dossier (et non le fichier) est monté : le WAF voit la liste à jour après un `nginx -s reload`.
       # Monté comme « plugin » CRS : seul emplacement inclus avant les règles CRS par cette image.

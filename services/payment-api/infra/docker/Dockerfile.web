@@ -9,7 +9,7 @@ RUN npm ci
 COPY front ./front
 RUN node "node_modules/vite/bin/vite.js" --config front/vite.config.js build
 
-FROM nginx:1.27-alpine
+FROM nginxinc/nginx-unprivileged:1.27-alpine
 COPY infra/docker/nginx.conf /etc/nginx/conf.d/default.conf
 COPY --from=build /app/front/dist /usr/share/nginx/html
-EXPOSE 80
+EXPOSE 8080

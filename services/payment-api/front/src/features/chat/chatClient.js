@@ -1,4 +1,4 @@
-const CHAT_API_URL = import.meta.env.VITE_PAYMENT_API_URL || 'http://127.0.0.1:4000';
+const CHAT_API_URL = import.meta.env.VITE_PAYMENT_API_URL ?? 'http://127.0.0.1:4000';
 
 export async function askChatbot(messages) {
   const response = await fetch(`${CHAT_API_URL}/v1/chat`, {
