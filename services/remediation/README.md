@@ -20,6 +20,10 @@ scripts/start-remediation.sh stop
 
 Dashboard : **http://127.0.0.1:8090**. Prérequis : plateforme déployée (`ansible-playbook playbooks/deploy.yml`, qui génère la clé HMAC), `uv`, `ansible-playbook`.
 
+## Rapports d'incident (assistant RAG)
+
+`remediation/reports.py` écrit un rapport Markdown par incident dans `data/reports/` (`REMEDIATION_REPORTS_DIR`) : symptômes en clair traduits depuis les features du détecteur (« site lent », « requêtes refusées »…), heures absolues, IP signalées / bloquées / protégées, déroulé des étapes, issue, fin des symptômes. Écrit à la clôture de l'incident, réécrit quand le détecteur signale le retour à la normale ; un court rapport aussi pour chaque alerte ignorée pendant la stabilisation. Écriture atomique ; une erreur d'écriture est journalisée (`report_error`) sans gêner la reprise. Le dossier est monté en lecture seule dans l'assistant RAG, qui les indexe au fil de l'eau (voir `rag/README.md`) : aucun lien réseau entre le moteur et l'assistant.
+
 ## Table de décision
 
 | Alerte | Actions | Preuve de reprise |
