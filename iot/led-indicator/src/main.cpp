@@ -32,9 +32,21 @@ static bool ledPhase = false;
 static long lastSeq = -1;
 static unsigned long lastPoll = 0;
 
+// LED bicolore 3 broches : les deux couleurs sur GREEN_PIN/RED_PIN, la 3e broche en commun.
+//   COMMON_ANODE 0 (défaut) : cathode commune au GND  -> allumage sur niveau HAUT
+//   COMMON_ANODE 1           : anode commune au 3V3    -> allumage sur niveau BAS (logique inversée)
+#ifndef COMMON_ANODE
+#define COMMON_ANODE 0
+#endif
+
 static void setLed(bool green, bool red) {
+#if COMMON_ANODE
+  digitalWrite(GREEN_PIN, green ? LOW : HIGH);
+  digitalWrite(RED_PIN, red ? LOW : HIGH);
+#else
   digitalWrite(GREEN_PIN, green ? HIGH : LOW);
   digitalWrite(RED_PIN, red ? HIGH : LOW);
+#endif
 }
 
 static void applySignal(const String& signal) {
@@ -88,12 +100,15 @@ static void updateLed() {
 static void ensureWifi() {
   if (WiFi.status() == WL_CONNECTED) return;
   WiFi.mode(WIFI_STA);
+  Serial.printf("[wifi] connexion a %s...\n", WIFI_SSID);
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
   const unsigned long start = millis();
   while (WiFi.status() != WL_CONNECTED && millis() - start < 15000UL) {
     delay(200);
     updateLed(); // garde la LED vivante pendant la (re)connexion
   }
+  if (WiFi.status() == WL_CONNECTED) Serial.printf("[wifi] OK, IP %s\n", WiFi.localIP().toString().c_str());
+  else Serial.println("[wifi] echec (nouvel essai au prochain cycle)");
 }
 
 static void poll() {
@@ -112,6 +127,7 @@ static void poll() {
       const char* signal = doc["data"]["signal"] | "idle";
       if (seq != lastSeq) {
         lastSeq = seq;
+        Serial.printf("[led] signal=%s seq=%ld\n", signal, seq);
         applySignal(String(signal));
       }
     }
@@ -121,6 +137,8 @@ static void poll() {
 
 void setup() {
   Serial.begin(115200);
+  delay(50);
+  Serial.println("\n[led-indicator] boot (WOR-99)");
   pinMode(GREEN_PIN, OUTPUT);
   pinMode(RED_PIN, OUTPUT);
   setLed(false, false);

@@ -23,8 +23,15 @@ Motifs **non bloquants** (`millis()`) : le WiFi et le poll restent réactifs, et
 
 ## Câblage
 
-LED bicolore à cathode commune : `GREEN_PIN=D1` (GPIO5), `RED_PIN=D2` (GPIO4), cathode au GND
-via une résistance (~330 Ω par anode). Modifiable dans `config.h`.
+**Une seule LED bicolore à 3 broches** (pas deux LED) : les deux couleurs sur `GREEN_PIN=D1`
+(GPIO5) et `RED_PIN=D2` (GPIO4), chacune via une résistance ~330 Ω ; la **3e broche est commune**.
+
+- **Cathode commune** (`COMMON_ANODE 0`, défaut) : broche commune → **GND**.
+- **Anode commune** (`COMMON_ANODE 1`) : broche commune → **3V3** (logique inversée).
+
+La broche commune est en général la plus longue (centrale). Si, une fois câblée en cathode
+commune, la LED reste allumée au repos ou les couleurs sont inversées, c'est une anode commune :
+mettre `COMMON_ANODE 1` dans `config.h` et reflasher.
 
 ## Configuration
 
