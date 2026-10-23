@@ -1,6 +1,6 @@
 import { getAuthToken } from '../auth/authClient';
 
-const API_URL = import.meta.env.VITE_PAYMENT_API_URL || 'http://127.0.0.1:4000';
+const API_URL = import.meta.env.VITE_PAYMENT_API_URL ?? 'http://127.0.0.1:4000';
 
 async function request(path, options = {}) {
   const contentType = options.body instanceof FormData ? {} : { 'Content-Type': 'application/json' };

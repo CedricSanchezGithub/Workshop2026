@@ -49,4 +49,6 @@ MONITOR_INTERVAL_S = float(os.environ.get("MONITOR_INTERVAL_S", 5))
 PROBE_INTERVAL_S = float(os.environ.get("PROBE_INTERVAL_S", 15))
 
 EVENTS_FILE = Path(os.environ.get("REMEDIATION_EVENTS_FILE", REPO / "services/remediation/data/events.jsonl"))
+# Rapports d'incident en Markdown, montés en lecture seule dans l'assistant RAG (remediation/reports.py).
+REPORTS_DIR = Path(os.environ.get("REMEDIATION_REPORTS_DIR", REPO / "services/remediation/data/reports"))
 DASHBOARD_DIR = Path(os.environ.get("DASHBOARD_DIR", REPO / "services/dashboard/dist"))

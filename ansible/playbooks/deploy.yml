@@ -86,6 +86,14 @@
         mode: "0644"
         force: false
 
+    # Rapports d'incident écrits par le moteur (hôte) et lus par l'assistant RAG (monté en lecture
+    # seule). Créé ici, avant le démarrage : sinon Docker crée le point de montage en root.
+    - name: Créer le dossier des rapports d'incident
+      ansible.builtin.file:
+        path: "{{ infra_dir }}/../services/remediation/data/reports"
+        state: directory
+        mode: "0755"
+
     - name: Démarrer la stack et attendre les healthchecks
       community.docker.docker_compose_v2:
         project_src: "{{ infra_dir }}"

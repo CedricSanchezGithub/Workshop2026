@@ -1,4 +1,4 @@
-const AUTH_API_URL = import.meta.env.VITE_PAYMENT_API_URL || 'http://127.0.0.1:4000';
+const AUTH_API_URL = import.meta.env.VITE_PAYMENT_API_URL ?? 'http://127.0.0.1:4000';
 const TOKEN_KEY = 'payandgo:auth-token';
 
 async function request(path, options = {}) {

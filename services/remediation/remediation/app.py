@@ -18,7 +18,7 @@ from fastapi.staticfiles import StaticFiles
 from prometheus_client import CONTENT_TYPE_LATEST, Counter, Gauge, Histogram, generate_latest
 from pydantic import ValidationError
 
-from remediation import config, signing
+from remediation import config, reports, signing
 from remediation.engine import TERMINAL, Engine
 from remediation.events import EventBus
 from remediation.models import Alert
@@ -63,6 +63,24 @@ def _on_event(event: dict) -> None:
 
 
 bus.listeners.append(_on_event)
+
+
+def _write_report(event: dict) -> None:
+    """Rapport Markdown pour l'assistant RAG : à la clôture d'un incident, à la fin des symptômes
+    (réécriture) et pour chaque alerte ignorée. Une erreur d'écriture ne doit jamais gêner la reprise."""
+    try:
+        if event["event"] == "alert_suppressed":
+            reports.write_suppressed(event)
+        elif event["event"] in ("incident_resolved", "escalation", "detector_resolved"):
+            inc = next((i for i in engine.incidents if i.id == event["incident"]), None)
+            if inc and inc.state in TERMINAL:
+                reports.write_incident(inc.to_dict())
+    except Exception as e:
+        print(json.dumps({"ts": time.time(), "service": "remediation", "event": "report_error",
+                          "error": repr(e)}), flush=True)
+
+
+bus.listeners.append(_write_report)
 
 
 _monitor_task: asyncio.Task | None = None

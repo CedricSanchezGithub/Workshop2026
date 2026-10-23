@@ -1,4 +1,4 @@
-const PAYMENT_API_URL = import.meta.env.VITE_PAYMENT_API_URL || 'http://127.0.0.1:4000';
+const PAYMENT_API_URL = import.meta.env.VITE_PAYMENT_API_URL ?? 'http://127.0.0.1:4000';
 const getAuthHeaders = () => {
   const token = window.sessionStorage.getItem('payandgo:auth-token');
   return token ? { Authorization: `Bearer ${token}` } : {};

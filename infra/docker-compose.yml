@@ -301,6 +301,34 @@ services:
           cpus: "0.75"
           memory: 384M
 
+  # Site Pay&Go (front React/Vite, WOR-35) servi en statique par nginx. Jamais publié : le WAF
+  # proxifie « / » vers ce conteneur et « /v1,/health,… » vers payment-api, donc le site et l'API
+  # partagent la même origine (le WAF) — aucun CORS, et les appels API passent par le CRS.
+  # Build avec VITE_PAYMENT_API_URL vide => URLs relatives (/v1/...), valables depuis n'importe
+  # quelle adresse (localhost comme réseau), sans recompiler.
+  web:
+    <<: *hardening
+    build:
+      context: ../services/payment-api
+      dockerfile: infra/docker/Dockerfile.web
+      args:
+        VITE_PAYMENT_API_URL: ""
+    image: resilience-alpha/payment-web:dev
+    networks:
+      - backend      # joignable par le WAF ; pas de port publié
+    cap_drop: [ALL]
+    healthcheck:
+      test: ["CMD", "wget", "-qO", "/dev/null", "http://127.0.0.1:8080/"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          cpus: "0.25"
+          memory: 128M
+
   # Reconnaissance faciale (WOR-95) — IA légère (InsightFace) appelée par le back-office
   # pour la MFA (consigne additionnelle 1). Interne, jamais publiée. Stocke uniquement des
   # embeddings (RGPD, WOR-101). /metrics -> Prometheus, logs JSON -> Loki.
@@ -365,6 +393,8 @@ services:
       # Surcharge de l'include proxy : résolution différée du backend (le WAF démarre sans l'API)
       - ./waf/templates/includes/proxy_backend.conf.template:/etc/nginx/templates/includes/proxy_backend.conf.template:ro
       - ./waf/templates/nginx.conf.template:/etc/nginx/templates/nginx.conf.template:ro
+      # Routage : /v1,/health,/metrics,/docs,/openapi.json -> payment-api ; le reste -> conteneur web (site Pay&Go)
+      - ./waf/templates/conf.d/default.conf.template:/etc/nginx/templates/conf.d/default.conf.template:ro
       # Remédiation (WOR-38) : règle fixe chargée avant le CRS + liste d'IP bloquées écrite par Ansible.
       # Le dossier (et non le fichier) est monté : le WAF voit la liste à jour après un `nginx -s reload`.
       # Monté comme « plugin » CRS : seul emplacement inclus avant les règles CRS par cette image.
@@ -462,6 +492,48 @@ services:
           cpus: "0.2"
           memory: 96M
 
+  # Assistant opérateur RAG (WOR-55/56/57) : Ollama sur l'hôte (qwen2.5:7b, bge-m3), LangChain, Chroma.
+  # Indexe docs/ et les rapports d'incident écrits par le moteur de remédiation (lecture seule).
+  # Isolation (exigence du sujet) : réseau dédié, aucun réseau de la plateforme, pas de socket Docker,
+  # pas de secret, système de fichiers en lecture seule, aucune capacité.
+  assistant:
+    <<: *hardening
+    build:
+      context: ../rag
+      dockerfile: assistant/Dockerfile
+    image: resilience-alpha/assistant:dev
+    environment:
+      OLLAMA_URL: "http://host.docker.internal:11434"
+      LLM_MODEL: "qwen2.5:7b"
+      EMBED_MODEL: "bge-m3"
+      ASSISTANT_TZ: "Europe/Paris"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ../docs:/docs:ro
+      # Créé par deploy.yml avant le démarrage (sinon Docker le crée en root et le moteur n'y écrit plus)
+      - ../services/remediation/data/reports:/reports:ro
+      - assistant-data:/data
+    ports:
+      - "${ASSISTANT_BIND:-127.0.0.1}:${ASSISTANT_PORT:-8100}:8100"
+    networks:
+      - assistant
+    read_only: true
+    tmpfs: [/tmp]
+    cap_drop: [ALL]
+    # /live : processus vivant, indépendamment d'Ollama (l'indexation reprend quand Ollama répond)
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8100/live',timeout=3).status==200 else 1)"]
+      interval: 10s
+      timeout: 4s
+      retries: 10
+      start_period: 15s
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 1G
+
 networks:
   # Données métier : aucun accès sortant, aucun port publiable
   backend:
@@ -474,8 +546,11 @@ networks:
   # socket-proxy <-> alloy uniquement
   docker-api:
     internal: true
+  # Assistant RAG seul : accès à Ollama sur l'hôte, aucun service de la plateforme
+  assistant: {}
 
 volumes:
+  assistant-data:   # index Chroma (documentation + rapports d'incident), régénérable
   postgres-data:
   prometheus-data:
   loki-data:

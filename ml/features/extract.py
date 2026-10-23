@@ -79,8 +79,13 @@ FEATURES: list[Feature] = [
     # distinct_ips et top_ip_share sont calculées à partir d'une requête par IP (voir _ip_features).
 
     # --- Famille injection (SQLi) ---
+    # 403 du WAF, hors blocages d'IP posés par la remédiation elle-même (règle id:1001, phase 1) :
+    # sinon une IP bannie qui continue de marteler ferait monter ce signal et déclencherait une
+    # fausse alerte injection après un blocage DoS. La règle 1001 refuse en phase 1, avant les
+    # règles CRS 942xxx (phase 2) : un même audit ne porte jamais les deux.
     Feature("waf_block_rate", "injection", "loki",
-            f'sum(count_over_time({WAF_AUDIT} |= `"http_code":403` [{WINDOW}])) / {WINDOW_S}', "blocages WAF/s"),
+            f'sum(count_over_time({WAF_AUDIT} |= `"http_code":403` !~ `"ruleId":"1001"` [{WINDOW}])) / {WINDOW_S}',
+            "blocages WAF/s (hors bannissement d'IP par la remédiation)"),
     Feature("crs_sqli_hits", "injection", "loki",
             f'sum(count_over_time({WAF_AUDIT} |~ `"ruleId":"942[0-9]+"` [{WINDOW}]))',
             "audits WAF déclenchant une règle CRS SQLi (942xxx)"),
