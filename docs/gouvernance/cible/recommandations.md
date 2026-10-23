@@ -80,7 +80,7 @@ Chaque recommandation repose sur un élément **vérifiable**, issu de nos essai
 
 - Les chiffres financiers sont **fictifs**. Ils donnent des ordres de grandeur, pas un budget.
 - Les seuils DORA et les délais de notification sont repris de notre lecture des textes, à confirmer par un juriste.
-- Les temps de reprise ne vaudront preuve qu'une fois mesurés (WOR-79). Si les mesures ne tiennent pas les objectifs, les recommandations REC-1 et REC-3 seront revues.
+- Les temps de reprise viennent de répétitions sur le démonstrateur, pas d'un incident réel. L'attaque B n'a pas été chronométrée.
 
 ## 5. Décisions demandées à la direction
 

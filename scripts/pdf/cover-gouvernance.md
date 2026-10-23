@@ -21,10 +21,10 @@ Chaque pilier a un responsable. Les décisions d'architecture restent prises ens
 | WOR-68 | Services critiques et coût d'un arrêt de paiement | Terminé | Partie « Services critiques » |
 | WOR-69 | Analyse NIS2 / DORA | Terminé, version 0.3 | Partie « Analyse NIS2 / DORA » |
 | WOR-70 | Objectifs RTO / RPO | Terminé, version 0.3 | Partie « Objectifs RTO / RPO » ; attaque A reprise en ≈ 40 s |
-| WOR-71 | PCA / PRA | Terminé, version 0.3 | Partie « PCA / PRA » ; à confirmer par les essais (WOR-75, WOR-76, WOR-78) |
+| WOR-71 | PCA / PRA | Terminé, version 0.3 | Partie « PCA / PRA » ; tests WOR-75, WOR-76 et WOR-78 réalisés |
 | WOR-72 | Recommandations et arbitrages pour une direction | Terminé, version 1.0 | Partie « Recommandations à la direction » |
 | WOR-67 | EBIOS RM complet (ateliers 3 à 5) | Terminé | Partie « EBIOS RM », ateliers 3 à 5 |
-| WOR-73 | Relier EBIOS et PCA/PRA à l'architecture et aux essais | Terminé | Partie « État d'implémentation » (v0.5) ; résultats des répétitions intégrés |
+| WOR-73 | Relier EBIOS et PCA/PRA à l'architecture et aux essais | Terminé | Partie « État d'implémentation » (v0.6) ; résultats des répétitions intégrés |
 
 ## Décisions en attente avec les autres piliers
 

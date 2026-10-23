@@ -2,7 +2,7 @@
 
 > **Statut : constat.** Ce document décrit ce qui a été vérifié dans le code, avec ses sources. Les objectifs et les plans sont dans `cible/`.
 
-> Responsable : Cédric · Version 0.5 du 22/10/2026 · Relevé sur `main` après la fusion des PR #14 à #21, #24, #26 (moteur de remédiation, détection ML, tableau de bord), #29 (Pay&Go déplacé dans `services/payment-api/`), #47 à #58, #61 (consigne additionnelle 1, tableaux Grafana, détecteur réentraîné, note RGPD sur la biométrie)
+> Responsable : Cédric · Version 0.6 du 23/10/2026 · Relevé sur `main` après la fusion des PR #14 à #21, #24, #26 (moteur de remédiation, détection ML, tableau de bord), #29 (Pay&Go déplacé dans `services/payment-api/`), #47 à #58, #61 (consigne additionnelle 1, tableaux Grafana, détecteur réentraîné, note RGPD sur la biométrie), #63 à #67 (site Pay&Go derrière le WAF, rapports d'incident lus par l'assistant RAG)
 >
 > Les documents de gouvernance ont été écrits avant le code. Ce registre dit, pour chaque hypothèse importante, si le code la **confirme**, la **contredit** ou ne l'a **pas encore implémentée**. Il est à mettre à jour après chaque fusion importante et avant les essais (WOR-73).
 
@@ -11,11 +11,11 @@
 | Composant | État | Où |
 |---|---|---|
 | API de paiement (Node.js) : sessions, idempotence des paiements, métriques Prometheus, journaux JSON, limitation à 60 requêtes par minute et par client, 12 essais de connexion par 15 min, **verrouillage de l'identifiant après 2 échecs** (5 min, puis 10, 15…) | Implémentée. **Dans le socle, elle garde tout en mémoire** (voir §2) | `services/payment-api/backend/`, `infra/docker-compose.yml` |
-| Front web et page d'administration | Implémentés | `services/payment-api/front/` |
+| Front web et page d'administration | Implémentés ; servis par le WAF à la même adresse que l'API (conteneur `web`) | `services/payment-api/front/` |
 | Base PostgreSQL de l'application | Implémentée, **sans sauvegarde**, utilisée seulement par le déploiement autonome de Pay&Go | `services/payment-api/infra/docker-compose.yml` |
 | Socle : Vault, PostgreSQL, Prometheus (collecte toutes les 5 s, moteur de remédiation compris), Loki (rétention 7 jours), Grafana | Implémenté ; l'API y est collectée | `infra/docker-compose.yml` |
 | WAF ModSecurity + OWASP CRS, en mode bloquant, seul point d'entrée publié | Implémenté, l'API est derrière lui. Injections bloquées en 403. Liste d'IP bloquées rechargée à chaud (`nginx -s reload`, 20 s maximum) ; les autres règles demandent un redémarrage | `infra/waf/` |
-| Détection ML : Isolation Forest par famille (`traffic` → déni de service, `injection` → injection), fenêtre de 60 s au pas de 10 s, alerte après **3 fenêtres anormales** | Implémentée, en conteneur. Réentraînée le 21/10 sur 7,3 h de trafic légitime de la plateforme : environ une fausse alerte de trafic toutes les 7 h, aucune d'injection en validation. **Taux et délai de détection des attaques A et B pas encore mesurés** | `ml/inference/`, `ml/training/README.md` |
+| Détection ML : Isolation Forest par famille (`traffic` → déni de service, `injection` → injection), fenêtre de 60 s au pas de 10 s, alerte après **3 fenêtres anormales** | Implémentée, en conteneur. Réentraînée le 21/10 sur 7,3 h de trafic légitime de la plateforme : environ une fausse alerte de trafic toutes les 7 h, aucune d'injection en validation. Un blocage d'IP après un déni de service ne déclenche plus de fausse alerte d'injection (PR #63). Attaque A détectée en ≈ 30 s aux répétitions ; **attaque B non chronométrée** | `ml/inference/`, `ml/training/README.md` |
 | Moteur de remédiation : reçoit les alertes signées, exécute une liste fermée de playbooks Ansible, vérifie par une transaction de test. **Ignore les nouvelles alertes pendant 180 s** après un redémarrage ou une restauration | Implémenté, **sur l'hôte** (pas en conteneur), avec les droits Docker de l'utilisateur | `services/remediation/`, `scripts/start-remediation.sh` |
 | Playbooks de remédiation : blocage d'IP au WAF, redémarrage, restauration (recréation du conteneur), levée des blocages | Implémentés | `ansible/playbooks/remediation/` |
 | Tableau de bord d'incident (WOR-40), servi par le moteur | Implémenté | `services/dashboard/` |
@@ -25,7 +25,7 @@
 | Durcissement des conteneurs (non-root, `cap_drop`, limites de ressources) | Implémenté | `infra/docker-compose.yml` |
 | Double authentification du back-office (consigne additionnelle 1) : identifiant, puis visage par la caméra, puis mot de passe ; enrôlement par l'administrateur | Implémentée (WOR-95 à 97). Exigée seulement pour les comptes dont le visage est enrôlé ; 2 échecs de visage verrouillent l'identifiant. Empreintes faciales conservées dans le volume `face-data`, jamais les images | `services/face-recognition/`, `services/payment-api/` |
 | Objet connecté : LED de l'ESP8266 qui reflète l'état de la connexion au back-office (consigne additionnelle 1) | Implémenté (WOR-99, 100). Lit `/v1/device/led`, **ouvert si `DEVICE_TOKEN` n'est pas défini**, ce qui est le cas dans le socle | `iot/led-indicator/` |
-| Assistant RAG en lecture seule | Implémenté | service `assistant` de `infra/docker-compose.yml` |
+| Assistant RAG en lecture seule | Implémenté. Lit les rapports d'incident que le moteur écrit à chaque incident (symptômes, heures, IP bloquées, étapes, issue) : une base pour préparer une notification DORA (REC-7), **pas une preuve** (fichiers non signés, sans empreinte) | service `assistant` de `infra/docker-compose.yml`, `services/remediation/remediation/reports.py` |
 | Scripts d'attaque A et B | Implémentés ; **l'attaque B vise encore une route inexistante** (voir §3) | `attack/` |
 
 La chaîne attaque → détection → remédiation → vérification existe maintenant de bout en bout dans le socle. Aux répétitions du 22/10, l'attaque A a été reprise en ≈ 40 s (≈ 30 s de détection, ~7 s de l'alerte à la transaction de test), sans transaction perdue ni intervention humaine.
