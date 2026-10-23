@@ -21,6 +21,8 @@ body {
 .title { font-size: 22pt; font-weight: 700; color: var(--dark); margin: 0 0 4pt; }
 .subtitle { font-size: 12pt; font-style: italic; color: var(--mid); margin: 0 0 20pt; }
 
+img { max-width: 100%; display: block; margin: 6pt auto; }
+
 /* Chaque partie d'un dossier commence sur une nouvelle page */
 .part { break-before: page; }
 

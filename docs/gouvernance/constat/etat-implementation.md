@@ -2,7 +2,7 @@
 
 > **Statut : constat.** Ce document décrit ce qui a été vérifié dans le code, avec ses sources. Les objectifs et les plans sont dans `cible/`.
 
-> Responsable : Cédric · Version 0.5 du 22/10/2026 · Relevé sur `main` après la fusion des PR #14 à #21, #24, #26 (moteur de remédiation, détection ML, tableau de bord), #29 (Pay&Go déplacé dans `services/payment-api/`), #47 à #53 et #55 (consigne additionnelle 1, tableaux Grafana, détecteur réentraîné)
+> Responsable : Cédric · Version 0.6 du 23/10/2026 · Relevé sur `main` après la fusion des PR #14 à #21, #24, #26 (moteur de remédiation, détection ML, tableau de bord), #29 (Pay&Go déplacé dans `services/payment-api/`), #47 à #58, #61 (consigne additionnelle 1, tableaux Grafana, détecteur réentraîné, note RGPD sur la biométrie), #63 à #67 (site Pay&Go derrière le WAF, rapports d'incident lus par l'assistant RAG)
 >
 > Les documents de gouvernance ont été écrits avant le code. Ce registre dit, pour chaque hypothèse importante, si le code la **confirme**, la **contredit** ou ne l'a **pas encore implémentée**. Il est à mettre à jour après chaque fusion importante et avant les essais (WOR-73).
 
@@ -11,11 +11,11 @@
 | Composant | État | Où |
 |---|---|---|
 | API de paiement (Node.js) : sessions, idempotence des paiements, métriques Prometheus, journaux JSON, limitation à 60 requêtes par minute et par client, 12 essais de connexion par 15 min, **verrouillage de l'identifiant après 2 échecs** (5 min, puis 10, 15…) | Implémentée. **Dans le socle, elle garde tout en mémoire** (voir §2) | `services/payment-api/backend/`, `infra/docker-compose.yml` |
-| Front web et page d'administration | Implémentés | `services/payment-api/front/` |
+| Front web et page d'administration | Implémentés ; servis par le WAF à la même adresse que l'API (conteneur `web`) | `services/payment-api/front/` |
 | Base PostgreSQL de l'application | Implémentée, **sans sauvegarde**, utilisée seulement par le déploiement autonome de Pay&Go | `services/payment-api/infra/docker-compose.yml` |
 | Socle : Vault, PostgreSQL, Prometheus (collecte toutes les 5 s, moteur de remédiation compris), Loki (rétention 7 jours), Grafana | Implémenté ; l'API y est collectée | `infra/docker-compose.yml` |
 | WAF ModSecurity + OWASP CRS, en mode bloquant, seul point d'entrée publié | Implémenté, l'API est derrière lui. Injections bloquées en 403. Liste d'IP bloquées rechargée à chaud (`nginx -s reload`, 20 s maximum) ; les autres règles demandent un redémarrage | `infra/waf/` |
-| Détection ML : Isolation Forest par famille (`traffic` → déni de service, `injection` → injection), fenêtre de 60 s au pas de 10 s, alerte après **3 fenêtres anormales** | Implémentée, en conteneur. Réentraînée le 21/10 sur 7,3 h de trafic légitime de la plateforme : environ une fausse alerte de trafic toutes les 7 h, aucune d'injection en validation. **Taux et délai de détection des attaques A et B pas encore mesurés** | `ml/inference/`, `ml/training/README.md` |
+| Détection ML : Isolation Forest par famille (`traffic` → déni de service, `injection` → injection), fenêtre de 60 s au pas de 10 s, alerte après **3 fenêtres anormales** | Implémentée, en conteneur. Réentraînée le 21/10 sur 7,3 h de trafic légitime de la plateforme : environ une fausse alerte de trafic toutes les 7 h, aucune d'injection en validation. Un blocage d'IP après un déni de service ne déclenche plus de fausse alerte d'injection (PR #63). Attaque A détectée en ≈ 30 s aux répétitions ; **attaque B non chronométrée** | `ml/inference/`, `ml/training/README.md` |
 | Moteur de remédiation : reçoit les alertes signées, exécute une liste fermée de playbooks Ansible, vérifie par une transaction de test. **Ignore les nouvelles alertes pendant 180 s** après un redémarrage ou une restauration | Implémenté, **sur l'hôte** (pas en conteneur), avec les droits Docker de l'utilisateur | `services/remediation/`, `scripts/start-remediation.sh` |
 | Playbooks de remédiation : blocage d'IP au WAF, redémarrage, restauration (recréation du conteneur), levée des blocages | Implémentés | `ansible/playbooks/remediation/` |
 | Tableau de bord d'incident (WOR-40), servi par le moteur | Implémenté | `services/dashboard/` |
@@ -25,10 +25,10 @@
 | Durcissement des conteneurs (non-root, `cap_drop`, limites de ressources) | Implémenté | `infra/docker-compose.yml` |
 | Double authentification du back-office (consigne additionnelle 1) : identifiant, puis visage par la caméra, puis mot de passe ; enrôlement par l'administrateur | Implémentée (WOR-95 à 97). Exigée seulement pour les comptes dont le visage est enrôlé ; 2 échecs de visage verrouillent l'identifiant. Empreintes faciales conservées dans le volume `face-data`, jamais les images | `services/face-recognition/`, `services/payment-api/` |
 | Objet connecté : LED de l'ESP8266 qui reflète l'état de la connexion au back-office (consigne additionnelle 1) | Implémenté (WOR-99, 100). Lit `/v1/device/led`, **ouvert si `DEVICE_TOKEN` n'est pas défini**, ce qui est le cas dans le socle | `iot/led-indicator/` |
-| Assistant RAG en lecture seule | Implémenté | service `assistant` de `infra/docker-compose.yml` |
+| Assistant RAG en lecture seule | Implémenté. Lit les rapports d'incident que le moteur écrit à chaque incident (symptômes, heures, IP bloquées, étapes, issue) : une base pour préparer une notification DORA (REC-7), **pas une preuve** (fichiers non signés, sans empreinte) | service `assistant` de `infra/docker-compose.yml`, `services/remediation/remediation/reports.py` |
 | Scripts d'attaque A et B | Implémentés ; **l'attaque B vise encore une route inexistante** (voir §3) | `attack/` |
 
-La chaîne attaque → détection → remédiation → vérification existe maintenant de bout en bout dans le socle. Elle n'a pas encore été chronométrée.
+La chaîne attaque → détection → remédiation → vérification existe maintenant de bout en bout dans le socle. Aux répétitions du 22/10, l'attaque A a été reprise en ≈ 40 s (≈ 30 s de détection, ~7 s de l'alerte à la transaction de test), sans transaction perdue ni intervention humaine.
 
 ## 2. Hypothèses de la gouvernance confrontées au code
 
@@ -51,7 +51,7 @@ La chaîne attaque → détection → remédiation → vérification existe main
 | Journaux copiés avant toute restauration | `cible/pca-pra.md` S2, §6 | **Partiel** | `scripts/export-logs.sh` existe mais n'est appelé ni par le moteur ni par la remise à l'état sain |
 | Moteur de remédiation protégé (droits limités, ordres authentifiés) | `cible/pca-pra.md` S5, `cible/recommandations.md` REC-4 | **En grande partie confirmé** | Alertes signées HMAC avec contrôle de fraîcheur et anti-rejeu, liste fermée de playbooks, IP de l'hôte jamais bloquées, écoute locale. Mais il tourne sur l'hôte avec les droits Docker |
 | Escalade vers un humain | `cible/pca-pra.md` §3 | **Partiel** | Seulement après échec (événement `escalation`). Pas d'escalade systématique après une injection |
-| Collecte toutes les 5 s, détection en 30 à 80 s | `cible/rto-rpo.md` §4 | **Non mesuré** | Paramètres conformes (3 fenêtres au pas de 10 s). Le rapport montre qu'une seule requête d'injection bloquée par le WAF est détectée, mais le délai sur les attaques A et B reste à mesurer |
+| Collecte toutes les 5 s, détection en 30 à 80 s | `cible/rto-rpo.md` §4 | **Confirmé pour l'attaque A** | ≈ 30 s aux répétitions du 22/10, valeur imposée par le réglage (3 fenêtres au pas de 10 s). Attaque B non chronométrée |
 | Verrouillage progressif des comptes | `cible/ebios-rm.md` R4, `cible/recommandations.md` | **Confirmé** | 2 échecs puis 5 min, durée croissante, y compris avec le bon mot de passe pendant le verrou (`InMemoryLoginAttemptTracker.ts`). Verrous en mémoire : un redémarrage les efface |
 | Double authentification | `cible/ebios-rm.md` R4 | **Confirmé pour le back-office** | Visage exigé avant le mot de passe pour les comptes enrôlés. Les comptes clients n'en ont pas |
 | Durée de reprise affichée = RTO | `cible/rto-rpo.md` §1 | **À corriger à la mesure** | Le moteur compte depuis la réception de l'alerte (T3 → T6), pas depuis le début de l'impact (T1) |
@@ -77,7 +77,7 @@ La chaîne attaque → détection → remédiation → vérification existe main
 | Pendant 180 s après un redémarrage ou une restauration, le moteur ignore toute alerte | R1, R2 | Moyenne : une attaque relancée dans cette fenêtre n'est pas traitée (elle est journalisée `alert_suppressed`) |
 | Verrouillage par identifiant : quelques essais au mauvais mot de passe bloquent le compte légitime, de plus en plus longtemps | R1 (disponibilité du back-office) | Faible : contournement de l'usurpation au prix d'un déni de service ciblé, classique et accepté |
 | Le back-office répond `FACE_VERIFICATION_REQUIRED` avant de vérifier le mot de passe | R4 | Faible : révèle qu'un compte existe et a un visage enrôlé |
-| Empreintes faciales des membres de l'équipe : données biométriques **réelles** (RGPD art. 9), alors que le reste des données est fictif | ER3, RGPD | Moyenne : consentement écrit des personnes enrôlées et effacement après la démo (`DELETE /users/{user}` ou purge du volume `face-data`) |
+| Empreintes faciales des membres de l'équipe : données biométriques **réelles** (RGPD art. 9), alors que le reste des données est fictif | ER3, RGPD | Moyenne : consentement écrit des personnes enrôlées et effacement après la démo (bouton « révoquer » du back-office, `POST /v1/admin/faces/revoke`, ou purge du volume `face-data`). Cadre du traitement : `docs/governance/rgpd-biometrie.md` |
 | La reconnaissance faciale ne vérifie pas que le visage est vivant : une photo de l'administrateur peut passer (`services/face-recognition/`) | R4 | Moyenne : le mot de passe reste exigé. À citer en limite ; en production, détection du vivant |
 | Si le service de reconnaissance faciale tombe, l'administrateur ne peut plus se connecter (erreur 502) | R1 | Faible : dépendance à documenter dans le PCA (connexion de secours) |
 
@@ -92,4 +92,5 @@ Par ordre de priorité, pour que la démo prouve ce que la gouvernance affirme :
 5. **Appeler `scripts/export-logs.sh`** avant toute restauration et avant la remise à l'état sain. Développement, Infrastructure.
 6. **Chronométrer T1 → T6** sur trois essais par attaque (`cible/rto-rpo.md` §6). Tous.
 7. **Fermer le port 55432 et passer les secrets de l'application dans Vault.** Le sujet exige aussi qu'aucun secret ne figure en clair dans l'archive du code (§7.4) : le mot de passe `payandgo` de `services/payment-api/infra/docker-compose.yml` doit en sortir avant le rendu. Cybersécurité.
-8. **Recueillir le consentement écrit** des personnes dont le visage est enrôlé et prévoir l'effacement après la démo. Gouvernance, Cybersécurité.
+8. **Recueillir le consentement écrit** des personnes dont le visage est enrôlé et prévoir l'effacement après la démo (`docs/governance/rgpd-biometrie.md`). Gouvernance, Cybersécurité.
+9. **Corriger `docs/governance/rgpd-biometrie.md`**, qui affirme « aucun secret en clair », tant que le mot de passe `payandgo` reste dans `services/payment-api/infra/docker-compose.yml`. Cybersécurité.

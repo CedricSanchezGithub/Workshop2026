@@ -1,6 +1,6 @@
 # Dossier d'ingénierie et de gouvernance
 
-> Version 0.2 du 21/10/2026, avant les essais. Les sections marquées **À compléter** attendent les mesures des répétitions (WOR-78, WOR-79). Chaque pilier relit sa section avant le rendu.
+> Version 1.0 du 22/10/2026, après les répétitions.
 >
 > Les détails techniques restent dans le dépôt Git ; chaque section renvoie aux fichiers concernés.
 
@@ -17,22 +17,9 @@
 
 ### 2.1 Vue d'ensemble
 
-```
- Clients légitimes ─┐
- PC Attaquant ──────┴─► WAF (port 8080) ──► API de paiement
-                         ▲  IP bloquées       │ métriques, journaux
-                         │                    ▼
-                         │            Prometheus + Loki ──► Grafana
-                         │                    │                (SOC)
-                         │                    ▼
-                         │            Détection ML
-                         │                    │ alerte signée
-                         │                    ▼
-              Playbooks Ansible ◄── Moteur de remédiation
-              (blocage, redémarrage,   │
-               restauration)           ├─► transaction de test
-                                       └─► tableau de bord
-```
+![Architecture de la démonstration](architecture-demo.png)
+
+Source modifiable : `docs/dossier/architecture-demo.drawio` (draw.io).
 
 Trois flux : **le trafic** (clients et attaquant → WAF → API) ; **l'observation** (métriques toutes les 5 s, journaux de tous les conteneurs) ; **la réaction** (alerte signée → moteur → playbook → vérification par transaction).
 
@@ -116,19 +103,22 @@ Le RTO se mesure depuis la première transaction en échec, pas depuis l'alerte 
 
 ## 5. Résultats des essais
 
-**À compléter** après les répétitions (trois essais par attaque, pire cas retenu).
+Répétitions du 22/10 sur l'attaque A (déni de service), le scénario de la démonstration.
 
-| Mesure | Attaque A | Attaque B |
+| Mesure | Attaque A | Comment |
 |---|---|---|
-| Délai de détection (impact → alerte) | | |
-| RTO mesuré (impact → transaction réussie) | | |
-| Transactions perdues ou dupliquées | | |
-| Intervention humaine nécessaire | | |
+| Détection (attaque → alerte) | ≈ 30 s | Fixée par le réglage : l'alerte part après 3 fenêtres anormales consécutives, évaluées toutes les 10 s, pour éviter les faux positifs |
+| Reprise (alerte → transaction de test réussie) | ~7 s | Mesurée par le tableau de bord du moteur de remédiation |
+| **Reprise totale** | **≈ 40 s** | Sous l'objectif de 60 s de la démonstration et des 5 min du métier |
+| Transactions perdues | 0 | La reprise s'est faite par blocage de la source au WAF, sans redémarrage de l'API |
+| Intervention humaine | Aucune | |
+
+L'attaque B n'a pas été chronométrée : elle vise encore une route qui n'existe pas (`/api/pay`) et ne démontre que le blocage par le WAF.
 
 Déjà mesuré :
 
 - **WAF :** 9 vecteurs d'injection sur 10 bloqués en 403 (`infra/waf/README.md`).
-- **Détection :** réentraînée sur 7,3 h de trafic de la plateforme ; environ une fausse alerte de trafic toutes les 7 h, aucune d'injection en validation. Une seule requête d'injection bloquée par le WAF est détectée. Délai de détection des attaques A et B à mesurer (`ml/training/README.md`).
+- **Détection :** réentraînée sur 7,3 h de trafic de la plateforme ; environ une fausse alerte de trafic toutes les 7 h, aucune d'injection en validation. Une seule requête d'injection bloquée par le WAF est détectée. Détail du réglage : `ml/training/README.md`.
 
 ## 6. Sécurité
 
@@ -145,7 +135,7 @@ Déjà mesuré :
 | Journaux exportables avec empreintes SHA-256 pour l'investigation | `scripts/export-logs.sh` |
 | Scripts d'attaque limités au réseau du groupe | `attack/` |
 
-**Points ouverts**, suivis dans `docs/gouvernance/constat/etat-implementation.md` : l'API du socle garde ses données en mémoire ; le moteur de remédiation a les droits Docker de l'hôte ; le déploiement autonome de Pay&Go expose sa base (port 55432) avec un mot de passe dans le dépôt ; l'API renvoie le code de vérification des paiements ; une tentative d'injection bloquée par le WAF déclenche quand même la restauration ; les visages enrôlés sont des données biométriques réelles (consentement et effacement à prévoir) ; la reconnaissance faciale ne détecte pas une photo présentée à la caméra, le mot de passe reste donc indispensable.
+**Points ouverts**, suivis dans `docs/gouvernance/constat/etat-implementation.md` : l'API du socle garde ses données en mémoire ; le moteur de remédiation a les droits Docker de l'hôte ; le déploiement autonome de Pay&Go expose sa base (port 55432) avec un mot de passe dans le dépôt ; l'API renvoie le code de vérification des paiements ; une tentative d'injection bloquée par le WAF déclenche quand même la restauration ; les visages enrôlés sont des données biométriques réelles (consentement et effacement à prévoir, cadre RGPD dans `docs/governance/rgpd-biometrie.md`) ; la reconnaissance faciale ne détecte pas une photo présentée à la caméra, le mot de passe reste donc indispensable.
 
 ## 7. Gouvernance : risques, reprise et conformité
 
@@ -205,11 +195,9 @@ Documents complets : `docs/gouvernance/cible/` (EBIOS RM, services critiques, NI
 |---|---|---|
 | **Michael** | Développement | Application Pay&Go : API de paiement, authentification, front web et page d'administration, documentation OpenAPI, tests (PR #14 ; WOR-33 à WOR-42) |
 | **Reza** | Infrastructure | Socle Docker Compose, Prometheus, Loki et Alloy, Grafana, HashiCorp Vault, déploiement par Ansible et installation en une commande (PR #3, #4, #9, #11, #12 ; WOR-43 à WOR-49, WOR-62) |
-| **Léa** | IA / Data | Jeu de données et indicateurs, modèle de détection et son réglage sur le trafic de la plateforme, service d'inférence, moteur de remédiation et tableau de bord, tableaux Grafana, assistant RAG (PR #5, #10, #26, #50, #53, #55 ; WOR-38, WOR-50 à WOR-57) |
+| **Léa** | IA / Data | Jeu de données et indicateurs, modèle de détection et son réglage sur le trafic de la plateforme, service d'inférence, moteur de remédiation et tableau de bord, tableaux Grafana, assistant RAG (PR #5, #10, #26, #50, #53, #55, #63 à #67 ; WOR-38, WOR-50 à WOR-57) |
 | **Axel** | Cybersécurité | Scénarios et scripts d'attaque avec garde-fou de périmètre, WAF, SOC / SIEM, durcissement, export des journaux et investigation, remise à l'état sain, intégration de l'API derrière le WAF, reconnaissance faciale et double authentification du back-office, verrouillage des comptes, objet connecté ESP8266, réorganisation du dépôt (PR #1, #2, #6, #7, #16 à #21, #24, #29, #30, #47 à #49, #51, #52 ; WOR-29, WOR-58 à WOR-66, WOR-90, WOR-95 à WOR-100) |
 | **Cédric** | Gouvernance | EBIOS RM, coût d'un arrêt, NIS2/DORA, RTO/RPO, PCA/PRA, recommandations, constat du code face à la gouvernance, générateur de PDF et site de la documentation (PR #8, #13, #15, #22, #23, #25, #27, #28 ; WOR-31, WOR-67 à WOR-73) |
-
-**À compléter par chacun** : relire sa ligne, ajouter ce qui manque (revues, intégration, essais).
 
 ## 9. Où trouver le reste
 
@@ -221,3 +209,5 @@ Documents complets : `docs/gouvernance/cible/` (EBIOS RM, services critiques, NI
 | Runbooks d'incident et de reprise | `docs/runbooks/` |
 | Rapport d'entraînement du modèle | `ml/training/report.md` |
 | Gouvernance complète | `docs/gouvernance/` |
+| Biométrie et RGPD (double authentification du back-office) | `docs/governance/rgpd-biometrie.md` |
+| Démonstration de la double authentification et de la LED | `docs/demo-mfa-led.md` |

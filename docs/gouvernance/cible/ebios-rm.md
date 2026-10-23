@@ -4,7 +4,7 @@
 
 > Ticket : WOR-31 · Responsable : Cédric · Version 0.3 du 21/10/2026
 >
-> Ateliers 1 et 2 : version 0.1, **validée par les coachs** (WOR-32). Ateliers 3 à 5 : ajoutés en version 0.2 (WOR-67), sur les composants réels relevés dans `constat/etat-implementation.md`.
+> Ateliers 1 et 2 : version 0.1 (WOR-31). Ateliers 3 à 5 : ajoutés en version 0.2 (WOR-67), sur les composants réels relevés dans `constat/etat-implementation.md`.
 
 ## Hypothèses de travail
 
@@ -223,14 +223,3 @@ Règle des niveaux, identique à la matrice initiale : 🔴 si G4 et V2 ou plus 
 | Levée automatique des blocages | R1 | Michael | Fin du workshop | Chaos engineering (WOR-76) |
 | Moteur en conteneur, droits limités | R3 | Michael, Axel | Fin du workshop | Revue des droits (WOR-64) |
 | REC-2 à REC-6, REC-9 à REC-11 | Tous | Direction (fictive) | 6 à 12 mois | Voir `recommandations.md` |
-
----
-
-## Validation par les coachs (WOR-32)
-
-Ateliers 1 et 2 validés le 19/10/2026. Remarques des coachs : à reporter ici.
-
-## Suites
-
-- **WOR-67** : faire valider les ateliers 3 à 5 par les coachs.
-- **WOR-73** : relier chaque risque aux composants et aux résultats des tests.
