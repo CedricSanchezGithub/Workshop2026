@@ -57,7 +57,7 @@ services:
     restart: unless-stopped
 
   prometheus:
-    image: prom/prometheus:v3.15.0
+    image: prom/prometheus:v3.15.1
     networks: [app, obs]
     ports: ["127.0.0.1:${PROMETHEUS_PORT:-9090}:9090"]
     volumes:
@@ -70,7 +70,7 @@ services:
     restart: unless-stopped
 
   loki:
-    image: grafana/loki:3.7.8
+    image: grafana/loki:3.7.9
     networks: [obs]
     ports: ["127.0.0.1:${LOKI_PORT:-3100}:3100"]
     volumes:
@@ -80,7 +80,7 @@ services:
     restart: unless-stopped
 
   alloy:
-    image: grafana/alloy:v1.10.2
+    image: grafana/alloy:v1.21.2
     networks: [obs]
     volumes:
       - ./alloy/config.alloy:/etc/alloy/config.alloy:ro
