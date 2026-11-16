@@ -30,7 +30,7 @@ services:
     restart: unless-stopped
 
   waf:
-    image: owasp/modsecurity-crs:nginx@sha256:7698c48a41a43138ae317feeec964d1515b861cc1d9e50617bc1cdfe9f314e1d
+    image: owasp/modsecurity-crs:nginx@sha256:9a386aa4a9eeec9a46c61a1eaba101c846dd83b1ec125e9126e710dd61d84422
     depends_on:
       payment-api: {condition: service_healthy}
     networks: [app]
@@ -57,7 +57,7 @@ services:
     restart: unless-stopped
 
   prometheus:
-    image: prom/prometheus:v3.15.0
+    image: prom/prometheus:v3.16.0
     networks: [app, obs]
     ports: ["127.0.0.1:${PROMETHEUS_PORT:-9090}:9090"]
     volumes:
@@ -70,7 +70,7 @@ services:
     restart: unless-stopped
 
   loki:
-    image: grafana/loki:3.7.8
+    image: grafana/loki:3.7.10
     networks: [obs]
     ports: ["127.0.0.1:${LOKI_PORT:-3100}:3100"]
     volumes:
@@ -80,7 +80,7 @@ services:
     restart: unless-stopped
 
   alloy:
-    image: grafana/alloy:v1.10.2
+    image: grafana/alloy:v1.22.0
     networks: [obs]
     volumes:
       - ./alloy/config.alloy:/etc/alloy/config.alloy:ro
@@ -94,7 +94,7 @@ services:
     restart: unless-stopped
 
   grafana:
-    image: grafana/grafana:13.2.4
+    image: grafana/grafana:13.3.1
     networks: [obs]
     ports: ["127.0.0.1:${GRAFANA_PORT:-3300}:3000"]
     environment:
